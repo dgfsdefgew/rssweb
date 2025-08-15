@@ -2,336 +2,372 @@
 
 import { useState } from "react"
 import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
-import { Loader2, CheckCircle, XCircle, Globe } from "lucide-react"
+import { Textarea } from "@/components/ui/textarea"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { Brain, Scan, ExternalLink, Loader2, CheckCircle, AlertCircle, Code, Eye, Settings, Zap } from "lucide-react"
 
 interface TestResult {
-  name: string
-  type: string
-  url: string
   success: boolean
-  itemCount?: number
+  items?: any[]
   error?: string
   selectors?: any
+  pageTitle?: string
   duration?: number
 }
 
-const testWebsites = [
-  {
-    name: "Example.com",
-    url: "https://example.com",
-    type: "Simple HTML",
-    description: "Basic HTML structure for testing",
-  },
-  {
-    name: "Hacker News",
-    url: "https://news.ycombinator.com",
-    type: "News aggregator",
-    description: "List-based content with titles and links",
-  },
-  {
-    name: "JSONPlaceholder Blog",
-    url: "https://jsonplaceholder.typicode.com",
-    type: "API documentation",
-    description: "Simple structured content",
-  },
-  {
-    name: "GitHub Trending",
-    url: "https://github.com/trending",
-    type: "Repository listing",
-    description: "Repository cards with names and descriptions",
-  },
-  {
-    name: "Reddit Programming",
-    url: "https://www.reddit.com/r/programming",
-    type: "Social platform",
-    description: "Post items with titles and metadata",
-  },
-]
-
 export default function TestPage() {
-  const [testing, setTesting] = useState(false)
-  const [results, setResults] = useState<TestResult[]>([])
-  const [currentTest, setCurrentTest] = useState<string>("")
+  const [url, setUrl] = useState("")
+  const [customSelectors, setCustomSelectors] = useState("")
+  const [isLoading, setIsLoading] = useState(false)
+  const [result, setResult] = useState<TestResult | null>(null)
+  const [activeTab, setActiveTab] = useState("autodetect")
 
-  const testWebsite = async (website: any): Promise<TestResult> => {
-    const startTime = Date.now()
+  const testAutoDetect = async () => {
+    if (!url.trim()) return
+
+    setIsLoading(true)
+    setResult(null)
 
     try {
-      setCurrentTest(website.name)
-
-      // Test auto-detection with timeout
-      const controller = new AbortController()
-      const timeoutId = setTimeout(() => controller.abort(), 30000) // 30 second timeout
-
-      const autoDetectResponse = await fetch("/api/autodetect", {
+      const startTime = Date.now()
+      const response = await fetch("/api/autodetect", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ url: website.url }),
-        signal: controller.signal,
+        body: JSON.stringify({ url: url.trim() }),
       })
 
-      clearTimeout(timeoutId)
+      const data = await response.json()
+      const endTime = Date.now()
 
-      if (!autoDetectResponse.ok) {
-        throw new Error(`HTTP ${autoDetectResponse.status}: ${autoDetectResponse.statusText}`)
-      }
+      setResult({
+        ...data,
+        duration: endTime - startTime,
+      })
+    } catch (error) {
+      setResult({
+        success: false,
+        error: "Network error during testing",
+      })
+    } finally {
+      setIsLoading(false)
+    }
+  }
 
-      const autoDetectData = await autoDetectResponse.json()
+  const testCustomSelectors = async () => {
+    if (!url.trim() || !customSelectors.trim()) return
 
-      if (!autoDetectData.success) {
-        return {
-          name: website.name,
-          type: website.type,
-          url: website.url,
+    setIsLoading(true)
+    setResult(null)
+
+    try {
+      const startTime = Date.now()
+      let selectors
+      try {
+        selectors = JSON.parse(customSelectors)
+      } catch {
+        setResult({
           success: false,
-          error: autoDetectData.error || "Auto-detection failed",
-          duration: Date.now() - startTime,
-        }
+          error: "Invalid JSON in custom selectors",
+        })
+        setIsLoading(false)
+        return
       }
 
-      // Test feed generation with timeout
-      const feedController = new AbortController()
-      const feedTimeoutId = setTimeout(() => feedController.abort(), 30000)
-
-      const feedResponse = await fetch("/api/generate-feed", {
+      const response = await fetch("/api/generate-feed", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          url: website.url,
-          selectors: autoDetectData.selectors,
-          feedTitle: `${website.name} RSS Feed`,
-          maxItems: 5, // Reduced for faster testing
-          useAI: true,
+          url: url.trim(),
+          selectors,
         }),
-        signal: feedController.signal,
       })
 
-      clearTimeout(feedTimeoutId)
+      const data = await response.json()
+      const endTime = Date.now()
 
-      if (!feedResponse.ok) {
-        throw new Error(`HTTP ${feedResponse.status}: ${feedResponse.statusText}`)
-      }
-
-      const feedData = await feedResponse.json()
-
-      return {
-        name: website.name,
-        type: website.type,
-        url: website.url,
-        success: feedData.success,
-        itemCount: feedData.success ? feedData.preview.items.length : 0,
-        error: feedData.success ? undefined : feedData.error || "Feed generation failed",
-        selectors: autoDetectData.selectors,
-        duration: Date.now() - startTime,
-      }
+      setResult({
+        ...data,
+        duration: endTime - startTime,
+      })
     } catch (error) {
-      let errorMessage = "Unknown error"
-
-      if (error instanceof Error) {
-        if (error.name === "AbortError") {
-          errorMessage = "Request timed out (30s)"
-        } else {
-          errorMessage = error.message
-        }
-      }
-
-      return {
-        name: website.name,
-        type: website.type,
-        url: website.url,
+      setResult({
         success: false,
-        error: errorMessage,
-        duration: Date.now() - startTime,
-      }
+        error: "Network error during testing",
+      })
+    } finally {
+      setIsLoading(false)
     }
   }
 
-  const runAllTests = async () => {
-    setTesting(true)
-    setResults([])
-    setCurrentTest("")
+  const testDebugSelectors = async () => {
+    if (!url.trim()) return
 
-    const testResults: TestResult[] = []
+    setIsLoading(true)
+    setResult(null)
 
-    for (let i = 0; i < testWebsites.length; i++) {
-      const website = testWebsites[i]
-      setCurrentTest(`${website.name} (${i + 1}/${testWebsites.length})`)
+    try {
+      const startTime = Date.now()
+      const response = await fetch("/api/debug-selectors", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ url: url.trim() }),
+      })
 
-      try {
-        const result = await testWebsite(website)
-        testResults.push(result)
-        setResults([...testResults])
-      } catch (error) {
-        console.error(`Failed to test ${website.name}:`, error)
-        testResults.push({
-          name: website.name,
-          type: website.type,
-          url: website.url,
-          success: false,
-          error: error instanceof Error ? error.message : "Test execution failed",
-          duration: 0,
-        })
-        setResults([...testResults])
-      }
+      const data = await response.json()
+      const endTime = Date.now()
 
-      // Add delay between requests to avoid rate limiting
-      if (i < testWebsites.length - 1) {
-        await new Promise((resolve) => setTimeout(resolve, 2000))
-      }
+      setResult({
+        ...data,
+        duration: endTime - startTime,
+      })
+    } catch (error) {
+      setResult({
+        success: false,
+        error: "Network error during testing",
+      })
+    } finally {
+      setIsLoading(false)
     }
-
-    setTesting(false)
-    setCurrentTest("")
   }
 
-  const successful = results.filter((r) => r.success)
-  const failed = results.filter((r) => !r.success)
-  const totalItems = successful.reduce((sum, result) => sum + (result.itemCount || 0), 0)
+  const sampleSelectors = {
+    title: "h1, h2, .title, .headline",
+    link: "a[href]",
+    description: ".summary, .excerpt, p",
+    category: ".category, .tag",
+    timestamp: ".date, .time, time",
+  }
 
   return (
-    <div className="min-h-screen bg-gray-50 py-8">
-      <div className="container mx-auto px-4 max-w-6xl">
-        <div className="text-center mb-8">
-          <h1 className="text-3xl font-bold text-gray-900 mb-2">Website Structure Testing</h1>
-          <p className="text-gray-600">
-            Verify Gemini AI content detection across different website types and structures
-          </p>
+    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 text-white p-6">
+      <div className="container mx-auto max-w-6xl">
+        <div className="mb-8">
+          <h1 className="text-4xl font-bold bg-gradient-to-r from-purple-400 via-emerald-400 to-cyan-400 bg-clip-text text-transparent mb-4">
+            RSS Generator Testing Suite
+          </h1>
+          <p className="text-gray-300 text-lg">Test and debug the RSS feed generation system with various methods</p>
         </div>
 
-        <div className="mb-8 text-center">
-          <Button
-            onClick={runAllTests}
-            disabled={testing}
-            size="lg"
-            className="bg-teal-500 hover:bg-teal-600 text-white px-8"
-          >
-            {testing ? (
-              <>
-                <Loader2 className="mr-2 h-5 w-5 animate-spin" />
-                Testing {currentTest}...
-              </>
-            ) : (
-              <>
-                <Globe className="mr-2 h-5 w-5" />
-                Run All Tests
-              </>
-            )}
-          </Button>
-        </div>
+        <div className="grid lg:grid-cols-2 gap-8">
+          {/* Testing Interface */}
+          <Card className="bg-black/60 border-purple-500/30 backdrop-blur-sm">
+            <CardHeader>
+              <CardTitle className="flex items-center text-xl text-purple-400">
+                <Zap className="w-5 h-5 mr-2" />
+                Test Configuration
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-6">
+              <div>
+                <label className="block text-sm font-medium text-gray-300 mb-2">Website URL</label>
+                <Input
+                  type="url"
+                  placeholder="https://example.com"
+                  value={url}
+                  onChange={(e) => setUrl(e.target.value)}
+                  className="bg-black/80 border-purple-400/30 text-white placeholder:text-gray-500"
+                />
+              </div>
 
-        {results.length > 0 && (
-          <div className="mb-8">
-            <Card>
-              <CardHeader>
-                <CardTitle>Test Summary</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                  <div className="text-center">
-                    <div className="text-2xl font-bold text-green-600">{successful.length}</div>
-                    <div className="text-sm text-gray-600">Successful</div>
-                  </div>
-                  <div className="text-center">
-                    <div className="text-2xl font-bold text-red-600">{failed.length}</div>
-                    <div className="text-sm text-gray-600">Failed</div>
-                  </div>
-                  <div className="text-center">
-                    <div className="text-2xl font-bold text-blue-600">{totalItems}</div>
-                    <div className="text-sm text-gray-600">Total Items</div>
-                  </div>
-                  <div className="text-center">
-                    <div className="text-2xl font-bold text-purple-600">
-                      {successful.length > 0 ? Math.round(totalItems / successful.length) : 0}
-                    </div>
-                    <div className="text-sm text-gray-600">Avg Items</div>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          </div>
-        )}
+              <Tabs value={activeTab} onValueChange={setActiveTab}>
+                <TabsList className="grid w-full grid-cols-3 bg-black/60">
+                  <TabsTrigger value="autodetect" className="data-[state=active]:bg-purple-600">
+                    <Brain className="w-4 h-4 mr-2" />
+                    Auto Detect
+                  </TabsTrigger>
+                  <TabsTrigger value="custom" className="data-[state=active]:bg-emerald-600">
+                    <Code className="w-4 h-4 mr-2" />
+                    Custom
+                  </TabsTrigger>
+                  <TabsTrigger value="debug" className="data-[state=active]:bg-cyan-600">
+                    <Settings className="w-4 h-4 mr-2" />
+                    Debug
+                  </TabsTrigger>
+                </TabsList>
 
-        <div className="grid gap-6">
-          {testWebsites.map((website, index) => {
-            const result = results.find((r) => r.name === website.name)
-
-            return (
-              <Card key={website.name} className="relative">
-                <CardHeader>
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <CardTitle className="flex items-center space-x-2">
-                        <span>{website.name}</span>
-                        <Badge variant="secondary">{website.type}</Badge>
-                        {result && (
-                          <div className="flex items-center space-x-1">
-                            {result.success ? (
-                              <CheckCircle className="h-5 w-5 text-green-500" />
-                            ) : (
-                              <XCircle className="h-5 w-5 text-red-500" />
-                            )}
-                          </div>
-                        )}
-                      </CardTitle>
-                      <p className="text-sm text-gray-600 mt-1">{website.description}</p>
-                      <p className="text-xs text-gray-500 mt-1">{website.url}</p>
-                    </div>
-                    {testing && currentTest === website.name && (
-                      <Loader2 className="h-6 w-6 animate-spin text-teal-500" />
-                    )}
-                  </div>
-                </CardHeader>
-
-                {result && (
-                  <CardContent>
-                    {result.success ? (
-                      <div className="space-y-3">
-                        <div className="flex items-center justify-between text-sm">
-                          <span className="text-green-600 font-medium">✅ Test Passed</span>
-                          <div className="flex space-x-4 text-gray-600">
-                            <span>{result.itemCount} items extracted</span>
-                            <span>{result.duration}ms</span>
-                          </div>
-                        </div>
-
-                        {result.selectors && (
-                          <div className="bg-gray-50 p-3 rounded text-xs">
-                            <div className="font-medium text-gray-700 mb-2">AI-Detected Selectors:</div>
-                            <div className="space-y-1 font-mono">
-                              <div>
-                                <span className="text-blue-600">Item:</span> {result.selectors.item}
-                              </div>
-                              <div>
-                                <span className="text-green-600">Title:</span> {result.selectors.title}
-                              </div>
-                              <div>
-                                <span className="text-purple-600">Link:</span> {result.selectors.link}
-                              </div>
-                              {result.selectors.description && (
-                                <div>
-                                  <span className="text-orange-600">Description:</span> {result.selectors.description}
-                                </div>
-                              )}
-                            </div>
-                          </div>
-                        )}
-                      </div>
+                <TabsContent value="autodetect" className="space-y-4">
+                  <p className="text-sm text-gray-400">Use AI-powered automatic detection to find content selectors</p>
+                  <Button
+                    onClick={testAutoDetect}
+                    disabled={isLoading || !url.trim()}
+                    className="w-full bg-gradient-to-r from-purple-600 to-emerald-600 hover:from-purple-500 hover:to-emerald-500"
+                  >
+                    {isLoading ? (
+                      <>
+                        <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                        Testing Auto Detection...
+                      </>
                     ) : (
-                      <div className="space-y-2">
-                        <div className="flex items-center justify-between text-sm">
-                          <span className="text-red-600 font-medium">❌ Test Failed</span>
-                          <span className="text-gray-600">{result.duration}ms</span>
-                        </div>
-                        <div className="bg-red-50 p-3 rounded text-sm text-red-700">{result.error}</div>
-                      </div>
+                      <>
+                        <Brain className="w-4 h-4 mr-2" />
+                        Test Auto Detection
+                      </>
                     )}
-                  </CardContent>
-                )}
-              </Card>
-            )
-          })}
+                  </Button>
+                </TabsContent>
+
+                <TabsContent value="custom" className="space-y-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-300 mb-2">Custom Selectors (JSON)</label>
+                    <Textarea
+                      placeholder={JSON.stringify(sampleSelectors, null, 2)}
+                      value={customSelectors}
+                      onChange={(e) => setCustomSelectors(e.target.value)}
+                      className="bg-black/80 border-emerald-400/30 text-white placeholder:text-gray-500 font-mono text-sm min-h-[200px]"
+                    />
+                  </div>
+                  <Button
+                    onClick={testCustomSelectors}
+                    disabled={isLoading || !url.trim() || !customSelectors.trim()}
+                    className="w-full bg-gradient-to-r from-emerald-600 to-cyan-600 hover:from-emerald-500 hover:to-cyan-500"
+                  >
+                    {isLoading ? (
+                      <>
+                        <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                        Testing Custom Selectors...
+                      </>
+                    ) : (
+                      <>
+                        <Code className="w-4 h-4 mr-2" />
+                        Test Custom Selectors
+                      </>
+                    )}
+                  </Button>
+                </TabsContent>
+
+                <TabsContent value="debug" className="space-y-4">
+                  <p className="text-sm text-gray-400">
+                    Debug mode shows detailed selector analysis and potential matches
+                  </p>
+                  <Button
+                    onClick={testDebugSelectors}
+                    disabled={isLoading || !url.trim()}
+                    className="w-full bg-gradient-to-r from-cyan-600 to-purple-600 hover:from-cyan-500 hover:to-purple-500"
+                  >
+                    {isLoading ? (
+                      <>
+                        <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                        Running Debug Analysis...
+                      </>
+                    ) : (
+                      <>
+                        <Settings className="w-4 h-4 mr-2" />
+                        Run Debug Analysis
+                      </>
+                    )}
+                  </Button>
+                </TabsContent>
+              </Tabs>
+            </CardContent>
+          </Card>
+
+          {/* Results */}
+          <Card className="bg-black/60 border-cyan-500/30 backdrop-blur-sm">
+            <CardHeader>
+              <CardTitle className="flex items-center text-xl text-cyan-400">
+                <Eye className="w-5 h-5 mr-2" />
+                Test Results
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              {!result ? (
+                <div className="text-center py-12 text-gray-400">
+                  <Scan className="w-12 h-12 mx-auto mb-4 opacity-50" />
+                  <p>Run a test to see results here</p>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  {/* Status */}
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center space-x-2">
+                      {result.success ? (
+                        <CheckCircle className="w-5 h-5 text-green-400" />
+                      ) : (
+                        <AlertCircle className="w-5 h-5 text-red-400" />
+                      )}
+                      <span className={result.success ? "text-green-400" : "text-red-400"}>
+                        {result.success ? "Success" : "Failed"}
+                      </span>
+                    </div>
+                    {result.duration && (
+                      <Badge variant="outline" className="border-gray-400/30 text-gray-400">
+                        {result.duration}ms
+                      </Badge>
+                    )}
+                  </div>
+
+                  {/* Error */}
+                  {result.error && (
+                    <div className="p-4 bg-red-500/10 border border-red-500/30 rounded-lg">
+                      <p className="text-red-300 text-sm">{result.error}</p>
+                    </div>
+                  )}
+
+                  {/* Success Results */}
+                  {result.success && (
+                    <div className="space-y-4">
+                      {result.pageTitle && (
+                        <div>
+                          <h4 className="font-semibold text-emerald-400 mb-2">Page Title</h4>
+                          <p className="text-gray-300 text-sm">{result.pageTitle}</p>
+                        </div>
+                      )}
+
+                      {result.items && result.items.length > 0 && (
+                        <div>
+                          <h4 className="font-semibold text-emerald-400 mb-2">Found Items ({result.items.length})</h4>
+                          <div className="space-y-2 max-h-96 overflow-y-auto">
+                            {result.items.slice(0, 10).map((item, index) => (
+                              <div key={index} className="p-3 bg-black/40 border border-gray-600/30 rounded-lg">
+                                <div className="flex items-start justify-between mb-2">
+                                  <h5 className="font-medium text-white text-sm line-clamp-2">
+                                    {item.title || "No title"}
+                                  </h5>
+                                  {item.link && (
+                                    <Button
+                                      variant="ghost"
+                                      size="sm"
+                                      onClick={() => window.open(item.link, "_blank")}
+                                      className="text-cyan-400 hover:text-cyan-300 p-1 h-auto"
+                                    >
+                                      <ExternalLink className="w-3 h-3" />
+                                    </Button>
+                                  )}
+                                </div>
+                                {item.description && (
+                                  <p className="text-gray-400 text-xs mb-2 line-clamp-2">{item.description}</p>
+                                )}
+                                <div className="flex items-center space-x-2 text-xs">
+                                  {item.category && (
+                                    <Badge variant="outline" className="border-emerald-400/30 text-emerald-400">
+                                      {item.category}
+                                    </Badge>
+                                  )}
+                                  {item.timestamp && <span className="text-gray-500">{item.timestamp}</span>}
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+
+                      {result.selectors && (
+                        <div>
+                          <h4 className="font-semibold text-emerald-400 mb-2">Debug Selectors</h4>
+                          <pre className="bg-black/60 p-4 rounded-lg text-xs text-gray-300 overflow-x-auto">
+                            {JSON.stringify(result.selectors, null, 2)}
+                          </pre>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+              )}
+            </CardContent>
+          </Card>
         </div>
       </div>
     </div>

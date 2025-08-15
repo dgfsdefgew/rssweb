@@ -3,43 +3,37 @@
 import { useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
-import { Textarea } from "@/components/ui/textarea"
-import { Loader2, Bug, CheckCircle, XCircle, ArrowLeft, Eye } from "lucide-react"
-import Link from "next/link"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { Brain, Loader2, CheckCircle, AlertCircle, Code, Eye, Zap, BarChart3, Search } from "lucide-react"
 
 interface DebugResult {
   success: boolean
-  url: string
-  selectors?: any
-  htmlPreview?: string
-  itemsFound?: number
-  sampleItems?: any[]
+  debugInfo?: any
+  potentialSelectors?: any
+  recommendedSelectors?: any
   error?: string
-  suggestions?: string[]
-  subpagesCrawled?: number
-  subpageUrls?: string[]
+  url?: string
+  timestamp?: string
 }
 
 export default function DebugPage() {
-  const [url, setUrl] = useState("https://www.trustedshops.de/shops/telekommunikation/")
-  const [debugging, setDebugging] = useState(false)
+  const [url, setUrl] = useState("")
+  const [isLoading, setIsLoading] = useState(false)
   const [result, setResult] = useState<DebugResult | null>(null)
 
-  const debugWebsite = async () => {
-    if (!url) return
+  const runDebugAnalysis = async () => {
+    if (!url.trim()) return
 
-    setDebugging(true)
+    setIsLoading(true)
     setResult(null)
 
     try {
-      // First, let's create a debug endpoint that gives us more information
       const response = await fetch("/api/debug-selectors", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ url }),
+        body: JSON.stringify({ url: url.trim() }),
       })
 
       const data = await response.json()
@@ -47,199 +41,279 @@ export default function DebugPage() {
     } catch (error) {
       setResult({
         success: false,
-        url,
-        error: error instanceof Error ? error.message : "Debug failed",
+        error: "Network error during debug analysis",
       })
     } finally {
-      setDebugging(false)
+      setIsLoading(false)
     }
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 py-8">
-      <div className="container mx-auto px-4 max-w-6xl">
-        <div className="mb-6">
-          <Link href="/convert" className="flex items-center space-x-2 text-gray-600 hover:text-gray-900 mb-4">
-            <ArrowLeft className="h-4 w-4" />
-            <span>Back to Converter</span>
-          </Link>
-          <h1 className="text-3xl font-bold text-gray-900 mb-2">Selector Debug Tool</h1>
-          <p className="text-gray-600">Debug why certain websites return 0 items and improve selector detection</p>
+    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 text-white p-6">
+      <div className="container mx-auto max-w-7xl">
+        <div className="mb-8">
+          <h1 className="text-4xl font-bold bg-gradient-to-r from-purple-400 via-emerald-400 to-cyan-400 bg-clip-text text-transparent mb-4">
+            RSS Debug Console
+          </h1>
+          <p className="text-gray-300 text-lg">
+            Deep analysis of website structure and content selectors for RSS feed generation
+          </p>
         </div>
 
-        <Card className="mb-6">
+        {/* Debug Interface */}
+        <Card className="mb-8 bg-black/60 border-purple-500/30 backdrop-blur-sm">
           <CardHeader>
-            <CardTitle className="flex items-center space-x-2">
-              <Bug className="h-5 w-5 text-orange-500" />
-              <span>Debug Website Selectors</span>
+            <CardTitle className="flex items-center text-xl text-purple-400">
+              <Search className="w-5 h-5 mr-2" />
+              Debug Analysis
             </CardTitle>
+            <CardDescription className="text-gray-300">
+              Enter a website URL to perform detailed structural analysis
+            </CardDescription>
           </CardHeader>
-          <CardContent className="space-y-4">
-            <div>
-              <Label htmlFor="debug-url">Website URL</Label>
-              <Input
-                id="debug-url"
-                type="url"
-                placeholder="https://example.com"
-                value={url}
-                onChange={(e) => setUrl(e.target.value)}
-                className="mt-1"
-              />
+          <CardContent className="space-y-6">
+            <div className="flex gap-4">
+              <div className="flex-1">
+                <Input
+                  type="url"
+                  placeholder="https://example.com"
+                  value={url}
+                  onChange={(e) => setUrl(e.target.value)}
+                  className="bg-black/80 border-purple-400/30 text-white placeholder:text-gray-500"
+                  onKeyPress={(e) => e.key === "Enter" && runDebugAnalysis()}
+                />
+              </div>
+              <Button
+                onClick={runDebugAnalysis}
+                disabled={isLoading || !url.trim()}
+                className="bg-gradient-to-r from-purple-600 to-emerald-600 hover:from-purple-500 hover:to-emerald-500 px-8"
+              >
+                {isLoading ? (
+                  <>
+                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                    Analyzing...
+                  </>
+                ) : (
+                  <>
+                    <Zap className="w-4 h-4 mr-2" />
+                    Run Analysis
+                  </>
+                )}
+              </Button>
             </div>
-
-            <Button
-              onClick={debugWebsite}
-              disabled={!url || debugging}
-              className="w-full bg-orange-500 hover:bg-orange-600"
-            >
-              {debugging ? (
-                <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Debugging Selectors...
-                </>
-              ) : (
-                <>
-                  <Bug className="mr-2 h-4 w-4" />
-                  Debug Selectors
-                </>
-              )}
-            </Button>
           </CardContent>
         </Card>
 
+        {/* Results */}
         {result && (
           <div className="space-y-6">
-            {/* Status Card */}
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center space-x-2">
-                  {result.success ? (
-                    <CheckCircle className="h-5 w-5 text-green-500" />
-                  ) : (
-                    <XCircle className="h-5 w-5 text-red-500" />
+            {/* Status */}
+            <Card className="bg-black/60 border-cyan-500/30 backdrop-blur-sm">
+              <CardContent className="p-6">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center space-x-3">
+                    {result.success ? (
+                      <CheckCircle className="w-6 h-6 text-green-400" />
+                    ) : (
+                      <AlertCircle className="w-6 h-6 text-red-400" />
+                    )}
+                    <div>
+                      <h3 className={`font-semibold ${result.success ? "text-green-400" : "text-red-400"}`}>
+                        {result.success ? "Analysis Complete" : "Analysis Failed"}
+                      </h3>
+                      <p className="text-sm text-gray-400">
+                        {result.success ? `Analyzed: ${result.url}` : result.error}
+                      </p>
+                    </div>
+                  </div>
+                  {result.timestamp && (
+                    <Badge variant="outline" className="border-gray-400/30 text-gray-400">
+                      {new Date(result.timestamp).toLocaleTimeString()}
+                    </Badge>
                   )}
-                  <span>Debug Results</span>
-                  <Badge variant={result.success ? "default" : "destructive"}>
-                    {result.itemsFound || 0} items found
-                  </Badge>
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="text-sm text-gray-600 mb-4">
-                  <strong>URL:</strong> {result.url}
                 </div>
-
-                {result.error && (
-                  <div className="bg-red-50 border border-red-200 rounded p-3 mb-4">
-                    <h4 className="font-medium text-red-800 mb-1">Error</h4>
-                    <p className="text-red-700 text-sm">{result.error}</p>
-                  </div>
-                )}
-
-                {result.selectors && (
-                  <div className="bg-blue-50 border border-blue-200 rounded p-3 mb-4">
-                    <h4 className="font-medium text-blue-800 mb-2">AI-Detected Selectors</h4>
-                    <div className="space-y-1 text-sm font-mono">
-                      <div>
-                        <span className="text-blue-600">Item:</span> {result.selectors.item}
-                      </div>
-                      <div>
-                        <span className="text-green-600">Title:</span> {result.selectors.title}
-                      </div>
-                      <div>
-                        <span className="text-purple-600">Link:</span> {result.selectors.link}
-                      </div>
-                      {result.selectors.description && (
-                        <div>
-                          <span className="text-orange-600">Description:</span> {result.selectors.description}
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                )}
-
-                {result.subpagesCrawled && (
-                  <div className="bg-purple-50 border border-purple-200 rounded p-3 mb-4">
-                    <h4 className="font-medium text-purple-800 mb-2">Subpage Crawling</h4>
-                    <div className="text-sm text-purple-700">
-                      <p>Found {result.subpagesCrawled} subpages to crawl</p>
-                      {result.subpageUrls && (
-                        <div className="mt-2">
-                          <p className="font-medium">Sample subpages:</p>
-                          <ul className="list-disc list-inside text-xs">
-                            {result.subpageUrls.map((url, index) => (
-                              <li key={index} className="break-all">
-                                {url}
-                              </li>
-                            ))}
-                          </ul>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                )}
-
-                {result.suggestions && result.suggestions.length > 0 && (
-                  <div className="bg-yellow-50 border border-yellow-200 rounded p-3 mb-4">
-                    <h4 className="font-medium text-yellow-800 mb-2">Suggestions</h4>
-                    <ul className="text-sm text-yellow-700 space-y-1">
-                      {result.suggestions.map((suggestion, index) => (
-                        <li key={index}>• {suggestion}</li>
-                      ))}
-                    </ul>
-                  </div>
-                )}
               </CardContent>
             </Card>
 
-            {/* Sample Items */}
-            {result.sampleItems && result.sampleItems.length > 0 && (
-              <Card>
-                <CardHeader>
-                  <CardTitle>All Extracted Items ({result.sampleItems.length})</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-3 max-h-96 overflow-y-auto">
-                    {result.sampleItems.map((item, index) => (
-                      <div
-                        key={index}
-                        className="border-l-4 border-green-400 pl-3 py-2 border-b border-gray-100 last:border-b-0"
-                      >
-                        <div className="flex items-start justify-between">
-                          <div className="flex-1">
-                            <div className="font-medium text-sm">{item.title || "No title"}</div>
-                            <div className="text-xs text-gray-600 break-all">{item.link || "No link"}</div>
-                            {item.description && <div className="text-xs text-gray-500 mt-1">{item.description}</div>}
+            {result.success && result.debugInfo && (
+              <Tabs defaultValue="overview" className="space-y-6">
+                <TabsList className="grid w-full grid-cols-4 bg-black/60">
+                  <TabsTrigger value="overview" className="data-[state=active]:bg-purple-600">
+                    <BarChart3 className="w-4 h-4 mr-2" />
+                    Overview
+                  </TabsTrigger>
+                  <TabsTrigger value="selectors" className="data-[state=active]:bg-emerald-600">
+                    <Code className="w-4 h-4 mr-2" />
+                    Selectors
+                  </TabsTrigger>
+                  <TabsTrigger value="recommended" className="data-[state=active]:bg-cyan-600">
+                    <Brain className="w-4 h-4 mr-2" />
+                    Recommended
+                  </TabsTrigger>
+                  <TabsTrigger value="samples" className="data-[state=active]:bg-amber-600">
+                    <Eye className="w-4 h-4 mr-2" />
+                    Samples
+                  </TabsTrigger>
+                </TabsList>
+
+                <TabsContent value="overview">
+                  <Card className="bg-black/60 border-purple-500/30 backdrop-blur-sm">
+                    <CardHeader>
+                      <CardTitle className="text-purple-400">Page Overview</CardTitle>
+                    </CardHeader>
+                    <CardContent className="space-y-4">
+                      <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
+                        <div className="p-4 bg-black/40 rounded-lg">
+                          <h4 className="font-semibold text-emerald-400 mb-2">Page Info</h4>
+                          <div className="space-y-2 text-sm">
+                            <div>
+                              <span className="text-gray-400">Title:</span>
+                              <p className="text-white">{result.debugInfo.pageTitle || "No title"}</p>
+                            </div>
+                            <div>
+                              <span className="text-gray-400">Elements:</span>
+                              <p className="text-white">{result.debugInfo.totalElements}</p>
+                            </div>
                           </div>
-                          <Badge variant="outline" className="text-xs ml-2">
-                            #{index + 1}
-                          </Badge>
+                        </div>
+
+                        <div className="p-4 bg-black/40 rounded-lg">
+                          <h4 className="font-semibold text-cyan-400 mb-2">Content Structure</h4>
+                          <div className="space-y-1 text-sm">
+                            <div className="flex justify-between">
+                              <span className="text-gray-400">Articles:</span>
+                              <span className="text-white">{result.debugInfo.articles}</span>
+                            </div>
+                            <div className="flex justify-between">
+                              <span className="text-gray-400">Sections:</span>
+                              <span className="text-white">{result.debugInfo.sections}</span>
+                            </div>
+                            <div className="flex justify-between">
+                              <span className="text-gray-400">Links:</span>
+                              <span className="text-white">{result.debugInfo.links}</span>
+                            </div>
+                            <div className="flex justify-between">
+                              <span className="text-gray-400">Images:</span>
+                              <span className="text-white">{result.debugInfo.images}</span>
+                            </div>
+                          </div>
+                        </div>
+
+                        <div className="p-4 bg-black/40 rounded-lg">
+                          <h4 className="font-semibold text-amber-400 mb-2">Headings</h4>
+                          <div className="space-y-1 text-sm">
+                            {Object.entries(result.debugInfo.headings).map(([tag, count]) => (
+                              <div key={tag} className="flex justify-between">
+                                <span className="text-gray-400">{tag.toUpperCase()}:</span>
+                                <span className="text-white">{count as number}</span>
+                              </div>
+                            ))}
+                          </div>
                         </div>
                       </div>
+                    </CardContent>
+                  </Card>
+                </TabsContent>
+
+                <TabsContent value="selectors">
+                  <div className="grid lg:grid-cols-2 gap-6">
+                    {Object.entries(result.potentialSelectors || {}).map(([type, selectors]) => (
+                      <Card key={type} className="bg-black/60 border-emerald-500/30 backdrop-blur-sm">
+                        <CardHeader>
+                          <CardTitle className="text-emerald-400 capitalize">{type} Selectors</CardTitle>
+                        </CardHeader>
+                        <CardContent>
+                          <div className="space-y-3">
+                            {(selectors as any[]).slice(0, 5).map((selector, index) => (
+                              <div key={index} className="p-3 bg-black/40 rounded-lg">
+                                <div className="flex items-center justify-between mb-2">
+                                  <code className="text-cyan-400 text-sm font-mono">{selector.selector}</code>
+                                  <Badge variant="outline" className="border-gray-400/30 text-gray-400">
+                                    {selector.count}
+                                  </Badge>
+                                </div>
+                                {selector.samples && selector.samples.length > 0 && (
+                                  <div className="text-xs text-gray-400">
+                                    <p className="mb-1">Samples:</p>
+                                    {selector.samples.slice(0, 2).map((sample: string, i: number) => (
+                                      <p key={i} className="truncate">
+                                        • {sample}
+                                      </p>
+                                    ))}
+                                  </div>
+                                )}
+                              </div>
+                            ))}
+                          </div>
+                        </CardContent>
+                      </Card>
                     ))}
                   </div>
-                </CardContent>
-              </Card>
-            )}
+                </TabsContent>
 
-            {/* HTML Preview */}
-            {result.htmlPreview && (
-              <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center space-x-2">
-                    <Eye className="h-5 w-5" />
-                    <span>HTML Structure Preview</span>
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <Textarea
-                    value={result.htmlPreview}
-                    readOnly
-                    className="font-mono text-xs h-64 resize-none"
-                    placeholder="HTML structure will appear here..."
-                  />
-                </CardContent>
-              </Card>
+                <TabsContent value="recommended">
+                  <Card className="bg-black/60 border-cyan-500/30 backdrop-blur-sm">
+                    <CardHeader>
+                      <CardTitle className="text-cyan-400">Recommended Selectors</CardTitle>
+                      <CardDescription className="text-gray-300">
+                        AI-generated recommendations based on page analysis
+                      </CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="space-y-4">
+                        <pre className="bg-black/60 p-4 rounded-lg text-sm text-gray-300 overflow-x-auto">
+                          {JSON.stringify(result.recommendedSelectors, null, 2)}
+                        </pre>
+                        <div className="grid md:grid-cols-2 gap-4">
+                          {Object.entries(result.recommendedSelectors || {}).map(([key, value]) => (
+                            <div key={key} className="p-3 bg-black/40 rounded-lg">
+                              <h4 className="font-semibold text-emerald-400 capitalize mb-2">{key}</h4>
+                              <code className="text-cyan-400 text-sm font-mono">{value as string}</code>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                </TabsContent>
+
+                <TabsContent value="samples">
+                  <div className="space-y-6">
+                    {Object.entries(result.potentialSelectors || {}).map(([type, selectors]) => (
+                      <Card key={type} className="bg-black/60 border-amber-500/30 backdrop-blur-sm">
+                        <CardHeader>
+                          <CardTitle className="text-amber-400 capitalize">{type} Content Samples</CardTitle>
+                        </CardHeader>
+                        <CardContent>
+                          <div className="space-y-4">
+                            {(selectors as any[]).slice(0, 3).map((selector, index) => (
+                              <div key={index} className="space-y-2">
+                                <div className="flex items-center space-x-2">
+                                  <code className="text-cyan-400 text-sm font-mono bg-black/40 px-2 py-1 rounded">
+                                    {selector.selector}
+                                  </code>
+                                  <Badge variant="outline" className="border-gray-400/30 text-gray-400">
+                                    {selector.count} found
+                                  </Badge>
+                                </div>
+                                {selector.samples && (
+                                  <div className="pl-4 space-y-1">
+                                    {selector.samples.slice(0, 3).map((sample: string, i: number) => (
+                                      <p key={i} className="text-sm text-gray-300 bg-black/20 p-2 rounded">
+                                        {sample || "(empty)"}
+                                      </p>
+                                    ))}
+                                  </div>
+                                )}
+                              </div>
+                            ))}
+                          </div>
+                        </CardContent>
+                      </Card>
+                    ))}
+                  </div>
+                </TabsContent>
+              </Tabs>
             )}
           </div>
         )}

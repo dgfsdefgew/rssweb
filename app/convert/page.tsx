@@ -25,6 +25,7 @@ import {
   Camera,
   Zap,
   Info,
+  ImageIcon,
 } from "lucide-react"
 import Link from "next/link"
 
@@ -36,6 +37,7 @@ interface ContentItem {
   sourcePage: string
   selected: boolean
   confidence?: string
+  previewImage?: string | null
 }
 
 interface FeedPreview {
@@ -72,6 +74,7 @@ export default function ConvertPage() {
   const [feedTitle, setFeedTitle] = useState("")
   const [loading, setLoading] = useState(false)
   const [generating, setGenerating] = useState(false)
+  const [generatingPreviews, setGeneratingPreviews] = useState(false)
   const [previewItems, setPreviewItems] = useState<ContentItem[]>([])
   const [feedPreview, setFeedPreview] = useState<FeedPreview | null>(null)
   const [feedXml, setFeedXml] = useState("")
@@ -86,6 +89,7 @@ export default function ConvertPage() {
   const [visionAnalysis, setVisionAnalysis] = useState<VisionAnalysis | null>(null)
   const [detectedSelectors, setDetectedSelectors] = useState<any>(null)
   const [analysisMethod, setAnalysisMethod] = useState<string>("")
+  const [showPreviews, setShowPreviews] = useState(false)
 
   useEffect(() => {
     setMounted(true)
@@ -99,7 +103,7 @@ export default function ConvertPage() {
     setStep("input")
 
     try {
-      console.log("Starting vision analysis for:", url)
+      console.log("Starting smart analysis for:", url)
 
       const response = await fetch("/api/vision-analyze", {
         method: "POST",
@@ -115,34 +119,34 @@ export default function ConvertPage() {
         const textResponse = await response.text()
         console.error("Non-JSON response:", textResponse.substring(0, 500))
         throw new Error(
-          `Server error: The vision analysis service is currently unavailable. Please try traditional scraping instead.`,
+          `Server error: The smart analysis service is currently unavailable. Please try traditional scraping instead.`,
         )
       }
 
       const data = await response.json()
-      console.log("Vision analysis response:", data)
+      console.log("Smart analysis response:", data)
 
       if (data.success) {
         setScreenshot(data.screenshot)
         setVisionAnalysis(data.analysis)
         setDetectedSelectors(data.selectors)
         setFeedTitle(data.pageTitle || "")
-        setAnalysisMethod(data.method || "unknown")
+        setAnalysisMethod(data.method || "html-analysis")
         setStep("vision")
         setError("")
       } else {
         if (data.fallbackAvailable) {
           // Automatically fall back to traditional scraping
-          console.log("Vision analysis failed, falling back to traditional scraping")
+          console.log("Smart analysis not available, falling back to traditional scraping")
           await handleScrapeWebsite()
           return
         } else {
-          setError(data.error || "Vision analysis failed")
+          setError(data.error || "Smart analysis failed")
         }
       }
     } catch (error) {
-      console.error("Vision analysis failed:", error)
-      let errorMessage = "Vision analysis failed"
+      console.error("Smart analysis failed:", error)
+      let errorMessage = "Smart analysis failed"
 
       if (error instanceof Error) {
         errorMessage = error.message
@@ -150,8 +154,8 @@ export default function ConvertPage() {
         errorMessage = error
       }
 
-      // If vision analysis fails, automatically try traditional scraping
-      console.log("Vision analysis failed, automatically trying traditional scraping...")
+      // If smart analysis fails, automatically try traditional scraping
+      console.log("Smart analysis failed, automatically trying traditional scraping...")
       setError("")
       await handleScrapeWebsite()
     } finally {
@@ -242,6 +246,41 @@ export default function ConvertPage() {
     }
   }
 
+  const handleGeneratePreviews = async () => {
+    if (previewItems.length === 0) return
+
+    setGeneratingPreviews(true)
+    setError("")
+
+    try {
+      const response = await fetch("/api/generate-preview-images", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ items: previewItems.slice(0, 10) }), // Limit to first 10 items for performance
+      })
+
+      const data = await response.json()
+
+      if (data.success) {
+        // Update preview items with generated images
+        setPreviewItems((prevItems) =>
+          prevItems.map((item) => {
+            const updatedItem = data.items.find((updated: any) => updated.id === item.id)
+            return updatedItem ? { ...item, previewImage: updatedItem.previewImage } : item
+          }),
+        )
+        setShowPreviews(true)
+      } else {
+        setError("Failed to generate preview images")
+      }
+    } catch (error) {
+      console.error("Preview generation failed:", error)
+      setError("Failed to generate preview images")
+    } finally {
+      setGeneratingPreviews(false)
+    }
+  }
+
   const handleGenerateRSS = async () => {
     const selectedItems = previewItems.filter((item) => item.selected)
 
@@ -328,6 +367,7 @@ export default function ConvertPage() {
     setVisionAnalysis(null)
     setDetectedSelectors(null)
     setAnalysisMethod("")
+    setShowPreviews(false)
   }
 
   // Group items by source page for better organization
@@ -376,7 +416,7 @@ export default function ConvertPage() {
           <div className="text-center mb-8">
             <h1 className="text-3xl font-bold text-gray-900 mb-2">Convert Website to RSS</h1>
             <p className="text-gray-600">
-              {step === "input" && "Choose between AI vision analysis or traditional scraping"}
+              {step === "input" && "Choose between AI smart analysis or traditional scraping"}
               {step === "vision" && "Review the AI's analysis of the website"}
               {step === "preview" && "Select the items you want to include in your RSS feed"}
               {step === "generated" && "Your RSS feed has been generated successfully"}
@@ -423,7 +463,7 @@ export default function ConvertPage() {
                         onCheckedChange={(checked) => setUseVision(checked as boolean)}
                       />
                       <Label htmlFor="useVision" className="text-sm font-medium">
-                        Try AI Vision Analysis (Smart Mode)
+                        Try AI Smart Analysis
                       </Label>
                       <Badge variant="secondary" className="text-xs">
                         SMART
@@ -431,7 +471,7 @@ export default function ConvertPage() {
                     </div>
                     <p className="text-sm text-gray-500 ml-6">
                       {useVision
-                        ? "AI will attempt to visually analyze the website layout for better content detection. Falls back to traditional scraping if unavailable."
+                        ? "AI will analyze the website's HTML structure intelligently for better content detection. Falls back to traditional scraping if needed."
                         : "Traditional HTML analysis will be used to detect content patterns"}
                     </p>
                     {useVision && (
@@ -441,8 +481,8 @@ export default function ConvertPage() {
                           <div>
                             <strong className="text-blue-800">Smart Mode:</strong>
                             <span className="text-blue-700 ml-1">
-                              Attempts visual analysis first, automatically falls back to traditional scraping if
-                              needed. This provides the best results in most cases.
+                              Uses intelligent HTML structure analysis to understand content patterns and generate
+                              better selectors. Automatically falls back to traditional scraping if needed.
                             </span>
                           </div>
                         </div>
@@ -460,11 +500,11 @@ export default function ConvertPage() {
                       {loading ? (
                         <>
                           <Loader2 className="mr-2 h-5 w-5 animate-spin" />
-                          Analyzing Website (Smart Mode)...
+                          Running Smart Analysis...
                         </>
                       ) : (
                         <>
-                          <Camera className="mr-2 h-5 w-5" />
+                          <Brain className="mr-2 h-5 w-5" />
                           Start Smart Analysis
                         </>
                       )}
@@ -508,7 +548,7 @@ export default function ConvertPage() {
                       </Badge>
                       {analysisMethod && (
                         <Badge variant="outline" className="text-xs">
-                          {analysisMethod === "html-only" ? "HTML Analysis" : analysisMethod}
+                          {analysisMethod === "html-only" ? "Smart HTML Analysis" : analysisMethod}
                         </Badge>
                       )}
                     </div>
@@ -519,110 +559,179 @@ export default function ConvertPage() {
                   </CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-6">
+                  {/* Website Preview Section */}
+                  <div className="bg-gray-50 border rounded-lg p-4">
+                    <h4 className="font-medium text-gray-900 mb-3 flex items-center space-x-2">
+                      <Globe className="h-4 w-4 text-blue-500" />
+                      <span>Website Preview</span>
+                    </h4>
+                    <div className="grid md:grid-cols-2 gap-4">
+                      <div>
+                        <div className="text-sm space-y-2">
+                          <div className="flex justify-between">
+                            <span className="text-gray-600">URL:</span>
+                            <span className="text-blue-600 truncate max-w-xs">{url}</span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span className="text-gray-600">Title:</span>
+                            <span className="font-medium truncate max-w-xs">{feedTitle || "Loading..."}</span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span className="text-gray-600">Domain:</span>
+                            <span className="text-gray-800">{new URL(url).hostname}</span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span className="text-gray-600">Protocol:</span>
+                            <Badge variant="outline" className="text-xs">
+                              {new URL(url).protocol.replace(":", "")}
+                            </Badge>
+                          </div>
+                        </div>
+                      </div>
+                      <div>
+                        <div className="text-sm space-y-2">
+                          <div className="flex justify-between">
+                            <span className="text-gray-600">Analysis Method:</span>
+                            <Badge variant="secondary" className="text-xs">
+                              {analysisMethod === "html-only" ? "Smart HTML" : analysisMethod}
+                            </Badge>
+                          </div>
+                          <div className="flex justify-between">
+                            <span className="text-gray-600">Content Type:</span>
+                            <Badge variant="outline" className="text-xs">
+                              {visionAnalysis?.contentType || "Analyzing..."}
+                            </Badge>
+                          </div>
+                          <div className="flex justify-between">
+                            <span className="text-gray-600">Layout:</span>
+                            <Badge variant="outline" className="text-xs">
+                              {visionAnalysis?.layoutType || "Detecting..."}
+                            </Badge>
+                          </div>
+                          <div className="flex justify-between">
+                            <span className="text-gray-600">Confidence:</span>
+                            <Badge
+                              variant={visionAnalysis?.confidence === "high" ? "default" : "secondary"}
+                              className="text-xs"
+                            >
+                              {visionAnalysis?.confidence || "Processing..."}
+                            </Badge>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Quick Stats */}
+                    <div className="mt-4 pt-3 border-t border-gray-200">
+                      <div className="flex items-center justify-between text-xs text-gray-600">
+                        <span>Scraped at: {new Date().toLocaleString()}</span>
+                        <div className="flex items-center space-x-2">
+                          <span>Status:</span>
+                          <div className="flex items-center space-x-1">
+                            <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
+                            <span className="text-green-600">Active</span>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
                   {analysisMethod === "html-only" && (
                     <Alert className="border-blue-200 bg-blue-50">
                       <Info className="h-4 w-4 text-blue-600" />
                       <AlertDescription className="text-blue-800">
-                        <strong>HTML Analysis Mode:</strong> Visual screenshot analysis wasn't available, so we analyzed
-                        the HTML structure instead. This still provides intelligent content detection.
+                        <strong>Smart HTML Analysis:</strong> Using intelligent HTML structure analysis to detect
+                        content patterns. This provides better results than basic scraping by understanding the page
+                        structure.
                       </AlertDescription>
                     </Alert>
                   )}
 
-                  <div className="grid md:grid-cols-2 gap-6">
-                    {/* Screenshot */}
-                    <div>
-                      <h4 className="font-medium text-gray-900 mb-3">
-                        Website {screenshot ? "Screenshot" : "Analysis"}
-                      </h4>
-                      <div className="border rounded-lg overflow-hidden">
-                        {screenshot ? (
-                          <img
-                            src={screenshot || "/placeholder.svg"}
-                            alt="Website screenshot"
-                            className="w-full h-auto max-h-96 object-contain"
-                          />
-                        ) : (
-                          <div className="w-full h-48 bg-gradient-to-br from-blue-50 to-purple-50 flex items-center justify-center">
-                            <div className="text-center">
-                              <Brain className="h-12 w-12 text-blue-500 mx-auto mb-2" />
-                              <span className="text-gray-600">HTML Structure Analysis</span>
-                            </div>
+                  {/* Screenshot */}
+                  <div>
+                    <h4 className="font-medium text-gray-900 mb-3">Website {screenshot ? "Screenshot" : "Analysis"}</h4>
+                    <div className="border rounded-lg overflow-hidden">
+                      {screenshot ? (
+                        <img
+                          src={screenshot || "/placeholder.svg"}
+                          alt="Website screenshot"
+                          className="w-full h-auto max-h-96 object-contain"
+                        />
+                      ) : (
+                        <div className="w-full h-48 bg-gradient-to-br from-blue-50 to-purple-50 flex items-center justify-center">
+                          <div className="text-center">
+                            <Brain className="h-12 w-12 text-blue-500 mx-auto mb-2" />
+                            <span className="text-gray-600">HTML Structure Analysis</span>
                           </div>
-                        )}
-                      </div>
-                    </div>
-
-                    {/* Analysis Results */}
-                    <div className="space-y-4">
-                      <div>
-                        <h4 className="font-medium text-gray-900 mb-2">Content Analysis</h4>
-                        <div className="space-y-2 text-sm">
-                          <div className="flex justify-between">
-                            <span className="text-gray-600">Content Type:</span>
-                            <Badge variant="outline">{visionAnalysis.contentType}</Badge>
-                          </div>
-                          <div className="flex justify-between">
-                            <span className="text-gray-600">Layout Type:</span>
-                            <Badge variant="outline">{visionAnalysis.layoutType}</Badge>
-                          </div>
-                        </div>
-                      </div>
-
-                      <div>
-                        <h4 className="font-medium text-gray-900 mb-2">Main Content Areas</h4>
-                        <div className="space-y-2">
-                          {visionAnalysis.mainContentAreas.map((area, index) => (
-                            <div key={index} className="bg-gray-50 p-3 rounded text-sm">
-                              <div className="flex items-center justify-between mb-1">
-                                <span className="font-medium">{area.description}</span>
-                                <Badge
-                                  variant={area.importance === "high" ? "default" : "secondary"}
-                                  className="text-xs"
-                                >
-                                  {area.importance}
-                                </Badge>
-                              </div>
-                              <div className="text-gray-600 text-xs">
-                                Location: {area.location} • Pattern: {area.contentPattern}
-                              </div>
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-
-                      <div>
-                        <h4 className="font-medium text-gray-900 mb-2">Recommended Focus</h4>
-                        <p className="text-sm text-gray-600 bg-blue-50 p-3 rounded">
-                          {visionAnalysis.recommendedFocus}
-                        </p>
-                      </div>
-
-                      {detectedSelectors && (
-                        <div>
-                          <h4 className="font-medium text-gray-900 mb-2">Generated Selectors</h4>
-                          <div className="bg-gray-50 p-3 rounded text-xs font-mono space-y-1">
-                            <div>
-                              <span className="text-blue-600">Item:</span> {detectedSelectors.item}
-                            </div>
-                            <div>
-                              <span className="text-green-600">Title:</span> {detectedSelectors.title}
-                            </div>
-                            <div>
-                              <span className="text-purple-600">Link:</span> {detectedSelectors.link}
-                            </div>
-                            {detectedSelectors.description && (
-                              <div>
-                                <span className="text-orange-600">Description:</span> {detectedSelectors.description}
-                              </div>
-                            )}
-                          </div>
-                          {detectedSelectors.reasoning && (
-                            <p className="text-xs text-gray-600 mt-2 italic">{detectedSelectors.reasoning}</p>
-                          )}
                         </div>
                       )}
                     </div>
+                  </div>
+
+                  {/* Analysis Results */}
+                  <div className="space-y-4">
+                    <div>
+                      <h4 className="font-medium text-gray-900 mb-2">Content Analysis</h4>
+                      <div className="space-y-2 text-sm">
+                        <div className="flex justify-between">
+                          <span className="text-gray-600">Content Type:</span>
+                          <Badge variant="outline">{visionAnalysis.contentType}</Badge>
+                        </div>
+                        <div className="flex justify-between">
+                          <span className="text-gray-600">Layout Type:</span>
+                          <Badge variant="outline">{visionAnalysis.layoutType}</Badge>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div>
+                      <h4 className="font-medium text-gray-900 mb-2">Main Content Areas</h4>
+                      <div className="space-y-2">
+                        {visionAnalysis.mainContentAreas.map((area, index) => (
+                          <div key={index} className="bg-gray-50 p-3 rounded text-sm">
+                            <div className="flex items-center justify-between mb-1">
+                              <span className="font-medium">{area.description}</span>
+                              <Badge variant={area.importance === "high" ? "default" : "secondary"} className="text-xs">
+                                {area.importance}
+                              </Badge>
+                            </div>
+                            <div className="text-gray-600 text-xs">
+                              Location: {area.location} • Pattern: {area.contentPattern}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+
+                    <div>
+                      <h4 className="font-medium text-gray-900 mb-2">Recommended Focus</h4>
+                      <p className="text-sm text-gray-600 bg-blue-50 p-3 rounded">{visionAnalysis.recommendedFocus}</p>
+                    </div>
+
+                    {detectedSelectors && (
+                      <div>
+                        <h4 className="font-medium text-gray-900 mb-2">Generated Selectors</h4>
+                        <div className="bg-gray-50 p-3 rounded text-xs font-mono space-y-1">
+                          <div>
+                            <span className="text-blue-600">Item:</span> {detectedSelectors.item}
+                          </div>
+                          <div>
+                            <span className="text-green-600">Title:</span> {detectedSelectors.title}
+                          </div>
+                          <div>
+                            <span className="text-purple-600">Link:</span> {detectedSelectors.link}
+                          </div>
+                          {detectedSelectors.description && (
+                            <div>
+                              <span className="text-orange-600">Description:</span> {detectedSelectors.description}
+                            </div>
+                          )}
+                        </div>
+                        {detectedSelectors.reasoning && (
+                          <p className="text-xs text-gray-600 mt-2 italic">{detectedSelectors.reasoning}</p>
+                        )}
+                      </div>
+                    )}
                   </div>
 
                   <Button
@@ -703,10 +812,30 @@ export default function ConvertPage() {
                       <span>Content Preview</span>
                       <Badge variant="secondary">{previewItems.length} items found</Badge>
                     </div>
-                    <Button variant="outline" onClick={resetToInput} size="sm">
-                      <ArrowLeft className="mr-2 h-4 w-4" />
-                      Back to URL
-                    </Button>
+                    <div className="flex space-x-2">
+                      <Button
+                        variant="outline"
+                        onClick={handleGeneratePreviews}
+                        disabled={generatingPreviews || previewItems.length === 0}
+                        size="sm"
+                      >
+                        {generatingPreviews ? (
+                          <>
+                            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                            Generating...
+                          </>
+                        ) : (
+                          <>
+                            <ImageIcon className="mr-2 h-4 w-4" />
+                            Generate Previews
+                          </>
+                        )}
+                      </Button>
+                      <Button variant="outline" onClick={resetToInput} size="sm">
+                        <ArrowLeft className="mr-2 h-4 w-4" />
+                        Back to URL
+                      </Button>
+                    </div>
                   </CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-4">
@@ -776,6 +905,22 @@ export default function ConvertPage() {
                                 onCheckedChange={() => toggleItemSelection(item.id)}
                                 className="mt-1"
                               />
+
+                              {/* Preview Image */}
+                              {showPreviews && item.previewImage && (
+                                <div className="flex-shrink-0">
+                                  <img
+                                    src={item.previewImage || "/placeholder.svg"}
+                                    alt={`Preview of ${item.title}`}
+                                    className="w-20 h-16 object-cover rounded border"
+                                    onError={(e) => {
+                                      // Hide image if it fails to load
+                                      e.currentTarget.style.display = "none"
+                                    }}
+                                  />
+                                </div>
+                              )}
+
                               <div className="flex-1 min-w-0">
                                 <div className="flex items-center space-x-2 mb-1">
                                   <h5 className="font-medium text-gray-900 line-clamp-2">{item.title}</h5>
@@ -845,11 +990,11 @@ export default function ConvertPage() {
                       <Button variant="outline" onClick={resetToInput} size="sm">
                         Create New Feed
                       </Button>
-                      <Button variant="outline" size="sm" onClick={copyFeedUrl} className="bg-transparent">
+                      <Button variant="outline" onClick={copyFeedUrl} className="bg-transparent">
                         <Copy className="mr-1 h-3 w-3" />
                         Copy URL
                       </Button>
-                      <Button variant="outline" size="sm" onClick={downloadXml} className="bg-transparent">
+                      <Button variant="outline" onClick={downloadXml} className="bg-transparent">
                         <Download className="mr-1 h-3 w-3" />
                         Download
                       </Button>

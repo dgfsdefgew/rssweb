@@ -1,174 +1,110 @@
-// Test script to verify Gemini AI detection works across different website structures
+import fetch from "node-fetch"
+
 const testWebsites = [
   {
-    name: "Hacker News",
-    url: "https://news.ycombinator.com",
-    type: "News aggregator",
-    expectedPattern: "List items with titles and links",
+    name: "TechCrunch",
+    url: "https://techcrunch.com",
+    expectedCategories: ["Technology", "Business"],
+    description: "Technology news and startup coverage",
   },
   {
     name: "BBC News",
     url: "https://www.bbc.com/news",
-    type: "News website",
-    expectedPattern: "Article cards with headlines and descriptions",
+    expectedCategories: ["World", "Politics", "Business"],
+    description: "International news coverage",
   },
   {
-    name: "GitHub Blog",
-    url: "https://github.blog",
-    type: "Corporate blog",
-    expectedPattern: "Blog post articles with titles and excerpts",
+    name: "ESPN",
+    url: "https://www.espn.com",
+    expectedCategories: ["Sports"],
+    description: "Sports news and scores",
   },
   {
-    name: "Reddit Programming",
-    url: "https://www.reddit.com/r/programming",
-    type: "Social media/Forum",
-    expectedPattern: "Post items with titles and links",
+    name: "The Verge",
+    url: "https://www.theverge.com",
+    expectedCategories: ["Technology", "Science"],
+    description: "Technology and culture news",
   },
   {
-    name: "Dev.to",
-    url: "https://dev.to",
-    type: "Developer blog platform",
-    expectedPattern: "Article cards with titles, authors, and descriptions",
-  },
-  {
-    name: "Product Hunt",
-    url: "https://www.producthunt.com",
-    type: "Product listing",
-    expectedPattern: "Product items with names and descriptions",
-  },
-  {
-    name: "Medium",
-    url: "https://medium.com",
-    type: "Publishing platform",
-    expectedPattern: "Article cards with titles and previews",
-  },
-  {
-    name: "Stack Overflow Questions",
-    url: "https://stackoverflow.com/questions",
-    type: "Q&A platform",
-    expectedPattern: "Question items with titles and metadata",
+    name: "Reuters",
+    url: "https://www.reuters.com",
+    expectedCategories: ["World", "Business", "Politics"],
+    description: "Global news and business information",
   },
 ]
 
 async function testWebsite(website) {
-  console.log(`\n🧪 Testing: ${website.name} (${website.type})`)
-  console.log(`URL: ${website.url}`)
+  console.log(`\n🔍 Testing: ${website.name}`)
+  console.log(`📍 URL: ${website.url}`)
+  console.log(`📝 Description: ${website.description}`)
 
   try {
-    // Test auto-detection
-    const autoDetectResponse = await fetch("http://localhost:3000/api/autodetect", {
+    const startTime = Date.now()
+
+    // Test the autodetect endpoint
+    const response = await fetch("http://localhost:3000/api/autodetect", {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: {
+        "Content-Type": "application/json",
+      },
       body: JSON.stringify({ url: website.url }),
     })
 
-    const autoDetectData = await autoDetectResponse.json()
+    const data = await response.json()
+    const endTime = Date.now()
+    const duration = endTime - startTime
 
-    if (autoDetectData.success) {
-      console.log("✅ Auto-detection successful")
-      console.log("📋 Suggested selectors:")
-      console.log(`   Item: ${autoDetectData.selectors.item}`)
-      console.log(`   Title: ${autoDetectData.selectors.title}`)
-      console.log(`   Link: ${autoDetectData.selectors.link}`)
-      console.log(`   Description: ${autoDetectData.selectors.description || "None"}`)
-      console.log(`   Suggested Title: ${autoDetectData.suggestedTitle}`)
+    if (data.success) {
+      console.log(`✅ Success! (${duration}ms)`)
+      console.log(`📊 Found ${data.items?.length || 0} items`)
 
-      // Test feed generation with AI-detected selectors
-      const feedResponse = await fetch("http://localhost:3000/api/generate-feed", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          url: website.url,
-          selectors: autoDetectData.selectors,
-          feedTitle: `${website.name} RSS Feed`,
-          maxItems: 5,
-          useAI: true,
-        }),
-      })
+      if (data.items && data.items.length > 0) {
+        const categories = [...new Set(data.items.map((item) => item.category))]
+        console.log(`🏷️  Categories found: ${categories.join(", ")}`)
 
-      const feedData = await feedResponse.json()
+        // Check if expected categories are present
+        const foundExpected = website.expectedCategories.some((cat) =>
+          categories.some((found) => found.toLowerCase().includes(cat.toLowerCase())),
+        )
 
-      if (feedData.success) {
-        console.log("✅ Feed generation successful")
-        console.log(`📰 Generated ${feedData.preview.items.length} items`)
+        if (foundExpected) {
+          console.log(`🎯 Expected categories detected!`)
+        } else {
+          console.log(`⚠️  Expected categories not found. Expected: ${website.expectedCategories.join(", ")}`)
+        }
 
-        // Show first few items
-        feedData.preview.items.slice(0, 3).forEach((item, index) => {
-          console.log(`   ${index + 1}. ${item.title}`)
-          console.log(`      Link: ${item.link}`)
-          if (item.description) {
-            console.log(`      Description: ${item.description.substring(0, 100)}...`)
-          }
+        // Show sample items
+        console.log(`📰 Sample articles:`)
+        data.items.slice(0, 3).forEach((item, index) => {
+          console.log(`   ${index + 1}. [${item.category}] ${item.title.substring(0, 60)}...`)
         })
-
-        return { success: true, itemCount: feedData.preview.items.length }
-      } else {
-        console.log("❌ Feed generation failed:", feedData.error)
-        return { success: false, error: feedData.error }
       }
     } else {
-      console.log("❌ Auto-detection failed:", autoDetectData.error)
-      return { success: false, error: autoDetectData.error }
+      console.log(`❌ Failed: ${data.error}`)
     }
   } catch (error) {
-    console.log("❌ Test failed with error:", error.message)
-    return { success: false, error: error.message }
+    console.log(`💥 Error: ${error.message}`)
   }
 }
 
 async function runAllTests() {
-  console.log("🚀 Starting comprehensive website structure tests...")
-  console.log("=".repeat(60))
-
-  const results = []
+  console.log("🚀 Starting RSS Feed Generator Website Tests")
+  console.log("=".repeat(50))
 
   for (const website of testWebsites) {
-    const result = await testWebsite(website)
-    results.push({
-      name: website.name,
-      type: website.type,
-      url: website.url,
-      ...result,
-    })
+    await testWebsite(website)
 
-    // Add delay between requests to be respectful
+    // Wait between tests to avoid rate limiting
     await new Promise((resolve) => setTimeout(resolve, 2000))
   }
 
-  // Summary
-  console.log("\n" + "=".repeat(60))
-  console.log("📊 TEST SUMMARY")
-  console.log("=".repeat(60))
-
-  const successful = results.filter((r) => r.success)
-  const failed = results.filter((r) => !r.success)
-
-  console.log(`✅ Successful: ${successful.length}/${results.length}`)
-  console.log(`❌ Failed: ${failed.length}/${results.length}`)
-
-  if (successful.length > 0) {
-    console.log("\n🎉 Successful tests:")
-    successful.forEach((result) => {
-      console.log(`   ✅ ${result.name} (${result.type}) - ${result.itemCount || 0} items`)
-    })
-  }
-
-  if (failed.length > 0) {
-    console.log("\n💥 Failed tests:")
-    failed.forEach((result) => {
-      console.log(`   ❌ ${result.name} (${result.type}) - ${result.error}`)
-    })
-  }
-
-  // Performance metrics
-  const totalItems = successful.reduce((sum, result) => sum + (result.itemCount || 0), 0)
-  console.log(`\n📈 Total items extracted: ${totalItems}`)
-  console.log(
-    `📊 Average items per successful site: ${successful.length > 0 ? Math.round(totalItems / successful.length) : 0}`,
-  )
-
-  console.log("\n🏁 Testing complete!")
+  console.log("\n" + "=".repeat(50))
+  console.log("✨ All tests completed!")
 }
 
-// Run the tests
-runAllTests().catch(console.error)
+// Run tests if this file is executed directly
+if (import.meta.url === `file://${process.argv[1]}`) {
+  runAllTests().catch(console.error)
+}
+
+export { testWebsites, testWebsite, runAllTests }

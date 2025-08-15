@@ -1,252 +1,376 @@
-import Link from "next/link"
+"use client"
+
+import { useState } from "react"
 import { Button } from "@/components/ui/button"
-import { Card, CardContent } from "@/components/ui/card"
-import { ArrowRight, Rss, Globe, Zap, Download, Brain, Code } from "lucide-react"
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { Badge } from "@/components/ui/badge"
+import { Brain, Sparkles, Globe, Scan, ArrowRight, Telescope, Orbit, Atom, Rss, Layout } from "lucide-react"
+import Link from "next/link"
 
 export default function HomePage() {
+  const [hoveredFeature, setHoveredFeature] = useState<number | null>(null)
+
+  const features = [
+    {
+      icon: <Scan className="w-8 h-8" />,
+      title: "Website Content Extraction",
+      description: "Automatically extract news articles, headlines, and content from any website or blog",
+      color: "from-purple-500 to-purple-600",
+      glowColor: "rgba(147, 51, 234, 0.3)",
+    },
+    {
+      icon: <Brain className="w-8 h-8" />,
+      title: "AI-Powered Categorization",
+      description: "Intelligent sorting into categories like Technology, Business, Politics, Sports, and more",
+      color: "from-cyan-500 to-cyan-600",
+      glowColor: "rgba(6, 182, 212, 0.3)",
+    },
+    {
+      icon: <Sparkles className="w-8 h-8" />,
+      title: "Magazine-Style Layouts",
+      description: "Transform plain RSS feeds into beautiful, visual magazine-style presentations",
+      color: "from-emerald-500 to-emerald-600",
+      glowColor: "rgba(16, 185, 129, 0.3)",
+    },
+    {
+      icon: <Globe className="w-8 h-8" />,
+      title: "Multi-Page Crawling",
+      description: "Scan multiple pages and sections of websites for comprehensive news coverage",
+      color: "from-amber-500 to-amber-600",
+      glowColor: "rgba(245, 158, 11, 0.3)",
+    },
+    {
+      icon: <Rss className="w-8 h-8" />,
+      title: "RSS Feed Generation",
+      description: "Convert any website into a proper RSS feed format for easy subscription",
+      color: "from-orange-500 to-orange-600",
+      glowColor: "rgba(249, 115, 22, 0.3)",
+    },
+    {
+      icon: <Layout className="w-8 h-8" />,
+      title: "Custom Feed Curation",
+      description: "Select specific articles and create personalized news collections",
+      color: "from-violet-500 to-violet-600",
+      glowColor: "rgba(139, 92, 246, 0.3)",
+    },
+  ]
+
   return (
-    <div className="min-h-screen bg-white">
-      {/* Header */}
-      <header className="border-b border-gray-100">
-        <div className="container mx-auto px-4 py-4 flex items-center justify-between">
-          <div className="flex items-center space-x-2">
-            <Rss className="h-8 w-8 text-teal-500" />
-            <span className="text-xl font-bold text-gray-900">RSS Converter</span>
-          </div>
-          <nav className="hidden md:flex items-center space-x-6">
-            <Link href="#features" className="text-gray-600 hover:text-gray-900 transition-colors">
-              Features
-            </Link>
-            <Link href="#how-it-works" className="text-gray-600 hover:text-gray-900 transition-colors">
-              How it Works
-            </Link>
-            <Link href="/convert">
-              <Button className="bg-teal-500 hover:bg-teal-600 text-white">Try Now</Button>
-            </Link>
-          </nav>
-        </div>
-      </header>
+    <div className="min-h-screen bg-black text-white overflow-hidden relative">
+      {/* Static Cosmic Background */}
+      <div className="fixed inset-0 pointer-events-none">
+        {/* Deep Space Background */}
+        <div className="absolute inset-0 bg-gradient-to-br from-black via-slate-900 to-purple-950"></div>
 
-      {/* Hero Section */}
-      <section className="py-20 px-4">
-        <div className="container mx-auto text-center">
-          <div className="max-w-4xl mx-auto">
-            <h1 className="text-5xl md:text-6xl font-bold text-gray-900 mb-6 leading-tight">
-              Turn Any Website into an <span className="text-teal-500">RSS Feed</span>
-            </h1>
-            <p className="text-xl text-gray-600 mb-8 max-w-2xl mx-auto">
-              Convert any website into a clean, structured RSS feed with AI-powered content detection. Perfect for
-              staying updated with your favorite sites.
-            </p>
-            <div className="flex flex-col sm:flex-row gap-4 justify-center mb-12">
-              <Link href="/convert">
-                <Button size="lg" className="bg-teal-500 hover:bg-teal-600 text-white px-8 py-4 text-lg group">
-                  Try it Now
-                  <ArrowRight className="ml-2 h-5 w-5 group-hover:translate-x-1 transition-transform" />
-                </Button>
-              </Link>
-              <Button
-                variant="outline"
-                size="lg"
-                className="px-8 py-4 text-lg border-gray-300 hover:border-teal-500 bg-transparent"
-              >
-                View Demo
-              </Button>
-            </div>
+        {/* Rotating Matrix Planet */}
+        <div className="absolute top-1/4 right-1/4 w-96 h-96 opacity-20">
+          <div className="relative w-full h-full">
+            {/* Planet Core */}
+            <div className="absolute inset-0 rounded-full bg-gradient-to-br from-purple-500/30 via-cyan-500/20 to-emerald-500/30 animate-spin-slow">
+              {/* Matrix Grid Lines */}
+              <div className="absolute inset-0 rounded-full">
+                {/* Horizontal Lines */}
+                {[...Array(12)].map((_, i) => (
+                  <div
+                    key={`h-${i}`}
+                    className="absolute left-0 right-0 h-px bg-gradient-to-r from-transparent via-cyan-400/40 to-transparent"
+                    style={{ top: `${(i + 1) * 8.33}%` }}
+                  />
+                ))}
+                {/* Vertical Lines */}
+                {[...Array(12)].map((_, i) => (
+                  <div
+                    key={`v-${i}`}
+                    className="absolute top-0 bottom-0 w-px bg-gradient-to-b from-transparent via-purple-400/40 to-transparent"
+                    style={{ left: `${(i + 1) * 8.33}%` }}
+                  />
+                ))}
+              </div>
 
-            {/* Hero Image */}
-            <div className="relative max-w-3xl mx-auto">
-              <div className="relative bg-gradient-to-br from-gray-100 via-gray-200 to-gray-300 rounded-2xl p-8 shadow-2xl">
-                <div className="absolute inset-0 bg-gradient-to-r from-teal-500/10 to-blue-600/10 rounded-2xl"></div>
-                <div className="relative flex items-center justify-center h-64">
-                  <div className="text-center space-y-4">
-                    <div className="relative">
-                      <img
-                        src="/placeholder.svg?height=120&width=120"
-                        alt="RSS Converter AI Logo"
-                        className="w-24 h-24 mx-auto drop-shadow-2xl"
-                      />
-                      <div className="absolute -inset-4 bg-gradient-to-r from-teal-400/20 to-blue-500/20 rounded-full blur-xl"></div>
-                    </div>
-                    <div className="flex items-center justify-center space-x-4">
-                      <div className="w-16 h-16 bg-gradient-to-br from-gray-300 to-gray-500 rounded-lg flex items-center justify-center shadow-lg">
-                        <Globe className="h-8 w-8 text-gray-700" />
-                      </div>
-                      <div className="flex space-x-1">
-                        <div className="w-2 h-2 bg-teal-500 rounded-full animate-pulse"></div>
-                        <div
-                          className="w-2 h-2 bg-teal-500 rounded-full animate-pulse"
-                          style={{ animationDelay: "0.2s" }}
-                        ></div>
-                        <div
-                          className="w-2 h-2 bg-teal-500 rounded-full animate-pulse"
-                          style={{ animationDelay: "0.4s" }}
-                        ></div>
-                      </div>
-                      <div className="w-16 h-16 bg-gradient-to-br from-orange-300 to-orange-500 rounded-lg flex items-center justify-center shadow-lg">
-                        <Rss className="h-8 w-8 text-white" />
-                      </div>
-                    </div>
-                    <p className="text-sm text-gray-600 font-medium">AI-Powered Website to RSS Conversion</p>
-                  </div>
-                </div>
+              {/* Digital Nodes */}
+              {[...Array(20)].map((_, i) => (
+                <div
+                  key={`node-${i}`}
+                  className="absolute w-2 h-2 bg-cyan-400 rounded-full animate-pulse"
+                  style={{
+                    left: `${Math.random() * 90 + 5}%`,
+                    top: `${Math.random() * 90 + 5}%`,
+                    animationDelay: `${Math.random() * 3}s`,
+                  }}
+                />
+              ))}
+
+              {/* Scanning Lines */}
+              <div className="absolute inset-0 rounded-full overflow-hidden">
+                <div className="absolute inset-0 bg-gradient-to-r from-transparent via-cyan-400/60 to-transparent w-full h-px animate-scan-vertical" />
+                <div className="absolute inset-0 bg-gradient-to-b from-transparent via-purple-400/60 to-transparent h-full w-px animate-scan-horizontal" />
               </div>
             </div>
+
+            {/* Planet Atmosphere */}
+            <div className="absolute inset-0 rounded-full bg-gradient-to-br from-cyan-500/10 via-transparent to-purple-500/10 blur-sm animate-pulse" />
           </div>
         </div>
-      </section>
 
-      {/* How It Works */}
-      <section id="how-it-works" className="py-20 bg-gray-50">
-        <div className="container mx-auto px-4">
-          <div className="text-center mb-16">
-            <h2 className="text-4xl font-bold text-gray-900 mb-4">How It Works</h2>
-            <p className="text-xl text-gray-600 max-w-2xl mx-auto">Convert any website to RSS in three simple steps</p>
-          </div>
-
-          <div className="grid md:grid-cols-3 gap-8 max-w-5xl mx-auto">
-            <Card className="text-center p-8 border-0 shadow-lg hover:shadow-xl transition-shadow">
-              <CardContent className="pt-6">
-                <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-6">
-                  <Globe className="h-8 w-8 text-blue-600" />
-                </div>
-                <h3 className="text-xl font-semibold text-gray-900 mb-4">1. Paste Website URL</h3>
-                <p className="text-gray-600">
-                  Simply enter the URL of any website you want to convert into an RSS feed
-                </p>
-              </CardContent>
-            </Card>
-
-            <Card className="text-center p-8 border-0 shadow-lg hover:shadow-xl transition-shadow">
-              <CardContent className="pt-6">
-                <div className="w-16 h-16 bg-teal-100 rounded-full flex items-center justify-center mx-auto mb-6">
-                  <Brain className="h-8 w-8 text-teal-600" />
-                </div>
-                <h3 className="text-xl font-semibold text-gray-900 mb-4">2. Configure or Use AI</h3>
-                <p className="text-gray-600">
-                  Let our AI detect content automatically or manually specify CSS selectors
-                </p>
-              </CardContent>
-            </Card>
-
-            <Card className="text-center p-8 border-0 shadow-lg hover:shadow-xl transition-shadow">
-              <CardContent className="pt-6">
-                <div className="w-16 h-16 bg-purple-100 rounded-full flex items-center justify-center mx-auto mb-6">
-                  <Download className="h-8 w-8 text-purple-600" />
-                </div>
-                <h3 className="text-xl font-semibold text-gray-900 mb-4">3. Preview & Export</h3>
-                <p className="text-gray-600">
-                  Preview your feed and export as XML or copy the feed URL for your reader
-                </p>
-              </CardContent>
-            </Card>
-          </div>
+        {/* Static Nebula */}
+        <div className="absolute inset-0 opacity-30">
+          <div className="absolute top-20 left-20 w-96 h-96 bg-purple-500 rounded-full mix-blend-multiply filter blur-3xl opacity-20"></div>
+          <div className="absolute bottom-20 right-20 w-96 h-96 bg-cyan-500 rounded-full mix-blend-multiply filter blur-3xl opacity-20"></div>
+          <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-96 h-96 bg-emerald-500 rounded-full mix-blend-multiply filter blur-3xl opacity-15"></div>
         </div>
-      </section>
 
-      {/* Features */}
-      <section id="features" className="py-20">
-        <div className="container mx-auto px-4">
+        {/* Static Star Field */}
+        <div className="absolute inset-0">
+          {[...Array(200)].map((_, i) => (
+            <div
+              key={i}
+              className="absolute bg-white rounded-full animate-pulse"
+              style={{
+                left: `${Math.random() * 100}%`,
+                top: `${Math.random() * 100}%`,
+                width: `${Math.random() * 3 + 1}px`,
+                height: `${Math.random() * 3 + 1}px`,
+                animationDelay: `${Math.random() * 3}s`,
+                animationDuration: `${Math.random() * 3 + 2}s`,
+              }}
+            />
+          ))}
+        </div>
+
+        {/* Static Grid Pattern */}
+        <div className="absolute inset-0 bg-[linear-gradient(rgba(255,255,255,0.02)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.02)_1px,transparent_1px)] bg-[size:50px_50px]"></div>
+      </div>
+
+      <div className="relative z-10">
+        {/* Header */}
+        <header className="border-b border-purple-500/20 backdrop-blur-sm bg-black/40">
+          <div className="container mx-auto px-6 py-6">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center space-x-4">
+                <div className="relative">
+                  <div className="w-12 h-12 bg-gradient-to-br from-purple-500 to-cyan-500 rounded-full flex items-center justify-center">
+                    <Atom className="w-6 h-6 text-white" />
+                  </div>
+                  <div className="absolute inset-0 bg-gradient-to-br from-purple-500 to-cyan-500 rounded-full blur-lg opacity-50 animate-pulse"></div>
+                </div>
+                <div>
+                  <h1 className="text-2xl font-bold bg-gradient-to-r from-purple-400 via-emerald-400 to-cyan-400 bg-clip-text text-transparent">
+                    RSS Feed Generator
+                  </h1>
+                  <p className="text-sm text-gray-400">AI-Powered News Extraction</p>
+                </div>
+              </div>
+              <Badge variant="outline" className="border-purple-400/30 text-purple-400 bg-purple-400/10">
+                <Orbit className="w-3 h-3 mr-1 animate-spin" />
+                ONLINE
+              </Badge>
+            </div>
+          </div>
+        </header>
+
+        {/* Hero Section */}
+        <section className="container mx-auto px-6 py-20">
+          <div className="text-center space-y-8 max-w-4xl mx-auto">
+            <div className="space-y-4">
+              <h2 className="text-6xl md:text-8xl font-black bg-gradient-to-r from-white via-purple-200 to-cyan-200 bg-clip-text text-transparent leading-tight">
+                SMART
+                <br />
+                <span className="bg-gradient-to-r from-purple-400 via-emerald-400 to-cyan-400 bg-clip-text text-transparent">
+                  RSS
+                </span>
+              </h2>
+              <p className="text-xl md:text-2xl text-gray-300 leading-relaxed">
+                Transform any website into intelligent RSS feeds with AI-powered
+                <br />
+                content extraction and beautiful magazine layouts
+              </p>
+            </div>
+
+            <div className="flex flex-col sm:flex-row gap-6 justify-center items-center">
+              <Link href="/news">
+                <Button className="bg-gradient-to-r from-purple-600 to-emerald-600 hover:from-purple-500 hover:to-emerald-500 text-white border-0 px-8 py-4 text-lg rounded-full shadow-2xl shadow-purple-500/25 hover:shadow-purple-500/40 transition-all duration-300">
+                  <Telescope className="w-5 h-5 mr-2" />
+                  Start Extracting News
+                  <ArrowRight className="w-5 h-5 ml-2" />
+                </Button>
+              </Link>
+              <Link href="/test-grok">
+                <Button
+                  variant="outline"
+                  className="border-cyan-400/30 text-cyan-400 hover:bg-cyan-400/10 bg-transparent px-8 py-4 text-lg rounded-full"
+                >
+                  <Brain className="w-5 h-5 mr-2" />
+                  Test AI Engine
+                </Button>
+              </Link>
+            </div>
+          </div>
+        </section>
+
+        {/* Features Grid */}
+        <section className="container mx-auto px-6 py-20">
           <div className="text-center mb-16">
-            <h2 className="text-4xl font-bold text-gray-900 mb-4">Powerful Features</h2>
-            <p className="text-xl text-gray-600 max-w-2xl mx-auto">
-              Everything you need to create perfect RSS feeds from any website
-            </p>
+            <h3 className="text-4xl font-bold bg-gradient-to-r from-purple-400 to-cyan-400 bg-clip-text text-transparent mb-4">
+              Powerful Features
+            </h3>
+            <p className="text-gray-400 text-lg">Everything you need to extract, organize, and present news content</p>
           </div>
 
           <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
-            <div className="flex items-start space-x-4">
-              <div className="w-12 h-12 bg-teal-100 rounded-lg flex items-center justify-center flex-shrink-0">
-                <Zap className="h-6 w-6 text-teal-600" />
-              </div>
-              <div>
-                <h3 className="text-lg font-semibold text-gray-900 mb-2">AI-Powered Detection</h3>
-                <p className="text-gray-600">
-                  Automatically detect content patterns and generate optimal CSS selectors
-                </p>
-              </div>
-            </div>
+            {features.map((feature, index) => (
+              <Card
+                key={index}
+                className="group relative bg-black/60 border-white/10 backdrop-blur-sm hover:border-purple-400/40 transition-all duration-300 cursor-pointer overflow-hidden"
+                onMouseEnter={() => setHoveredFeature(index)}
+                onMouseLeave={() => setHoveredFeature(null)}
+              >
+                {/* Static Glow Effect */}
+                <div
+                  className={`absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-500 blur-xl`}
+                  style={{ background: feature.glowColor }}
+                ></div>
 
-            <div className="flex items-start space-x-4">
-              <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center flex-shrink-0">
-                <Code className="h-6 w-6 text-blue-600" />
-              </div>
-              <div>
-                <h3 className="text-lg font-semibold text-gray-900 mb-2">Full Developer Control</h3>
-                <p className="text-gray-600">Manual CSS selector configuration for precise content extraction</p>
-              </div>
-            </div>
+                {/* Gradient Border */}
+                <div
+                  className={`absolute inset-0 rounded-lg bg-gradient-to-r ${feature.color} opacity-0 group-hover:opacity-20 transition-opacity duration-500`}
+                ></div>
 
-            <div className="flex items-start space-x-4">
-              <div className="w-12 h-12 bg-purple-100 rounded-lg flex items-center justify-center flex-shrink-0">
-                <Globe className="h-6 w-6 text-purple-600" />
-              </div>
-              <div>
-                <h3 className="text-lg font-semibold text-gray-900 mb-2">Works on Most Sites</h3>
-                <p className="text-gray-600">Compatible with static and dynamic pages, blogs, news sites, and more</p>
-              </div>
-            </div>
+                <CardHeader className="relative z-10">
+                  <div className={`inline-flex p-3 rounded-xl bg-gradient-to-r ${feature.color} mb-4 w-fit`}>
+                    {feature.icon}
+                  </div>
+                  <CardTitle className="text-white group-hover:text-cyan-100 transition-colors">
+                    {feature.title}
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="relative z-10">
+                  <CardDescription className="text-gray-400 group-hover:text-gray-300 transition-colors">
+                    {feature.description}
+                  </CardDescription>
+                </CardContent>
 
-            <div className="flex items-start space-x-4">
-              <div className="w-12 h-12 bg-green-100 rounded-lg flex items-center justify-center flex-shrink-0">
-                <Rss className="h-6 w-6 text-green-600" />
-              </div>
-              <div>
-                <h3 className="text-lg font-semibold text-gray-900 mb-2">Standard RSS Format</h3>
-                <p className="text-gray-600">Generate valid RSS 2.0 XML that works with all feed readers</p>
-              </div>
-            </div>
+                {/* Static Scanning Line Effect */}
+                {hoveredFeature === index && (
+                  <div className="absolute top-0 left-0 w-full h-px bg-gradient-to-r from-transparent via-cyan-400 to-transparent animate-pulse"></div>
+                )}
+              </Card>
+            ))}
+          </div>
+        </section>
 
-            <div className="flex items-start space-x-4">
-              <div className="w-12 h-12 bg-orange-100 rounded-lg flex items-center justify-center flex-shrink-0">
-                <Download className="h-6 w-6 text-orange-600" />
-              </div>
-              <div>
-                <h3 className="text-lg font-semibold text-gray-900 mb-2">Multiple Export Options</h3>
-                <p className="text-gray-600">Download XML files or get shareable feed URLs for your favorite reader</p>
-              </div>
-            </div>
+        {/* Examples Section */}
+        <section className="container mx-auto px-6 py-20">
+          <div className="text-center mb-16">
+            <h3 className="text-4xl font-bold bg-gradient-to-r from-cyan-400 to-purple-400 bg-clip-text text-transparent mb-4">
+              What You Can Do
+            </h3>
+            <p className="text-gray-400 text-lg">Real examples of how our RSS generator works</p>
+          </div>
 
-            <div className="flex items-start space-x-4">
-              <div className="w-12 h-12 bg-red-100 rounded-lg flex items-center justify-center flex-shrink-0">
-                <ArrowRight className="h-6 w-6 text-red-600" />
-              </div>
-              <div>
-                <h3 className="text-lg font-semibold text-gray-900 mb-2">Real-time Preview</h3>
-                <p className="text-gray-600">See exactly how your feed will look before exporting</p>
-              </div>
+          <div className="grid md:grid-cols-2 gap-8">
+            <Card className="bg-black/60 border-cyan-500/20 backdrop-blur-sm">
+              <CardHeader>
+                <CardTitle className="text-cyan-400 flex items-center">
+                  <Globe className="w-5 h-5 mr-2" />
+                  News Websites
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                <div className="text-gray-300">
+                  <p className="font-semibold mb-2">Extract from sites like:</p>
+                  <ul className="space-y-1 text-sm text-gray-400">
+                    <li>• TechCrunch → Technology news feed</li>
+                    <li>• BBC News → World news with categories</li>
+                    <li>• ESPN → Sports news and scores</li>
+                    <li>• Business blogs → Industry updates</li>
+                  </ul>
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card className="bg-black/60 border-emerald-500/20 backdrop-blur-sm">
+              <CardHeader>
+                <CardTitle className="text-emerald-400 flex items-center">
+                  <Sparkles className="w-5 h-5 mr-2" />
+                  Magazine Layouts
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                <div className="text-gray-300">
+                  <p className="font-semibold mb-2">Transform feeds into:</p>
+                  <ul className="space-y-1 text-sm text-gray-400">
+                    <li>• Visual magazine-style cards</li>
+                    <li>• Category-based color coding</li>
+                    <li>• Importance ranking system</li>
+                    <li>• Mobile-responsive layouts</li>
+                  </ul>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        </section>
+
+        {/* CTA Section */}
+        <section className="container mx-auto px-6 py-20">
+          <Card className="bg-gradient-to-br from-purple-900/40 to-cyan-900/40 border-purple-500/30 backdrop-blur-sm">
+            <div className="absolute inset-0 bg-gradient-to-br from-purple-500/10 to-cyan-500/10 rounded-lg"></div>
+            <CardContent className="relative z-10 text-center py-16 px-8">
+              <h3 className="text-4xl font-bold bg-gradient-to-r from-white to-gray-300 bg-clip-text text-transparent mb-6">
+                Ready to Create Smart RSS Feeds?
+              </h3>
+              <p className="text-xl text-gray-300 mb-8 max-w-2xl mx-auto">
+                Start extracting news from any website and transform it into beautiful, organized feeds
+              </p>
+              <Link href="/news">
+                <Button className="bg-gradient-to-r from-purple-600 to-cyan-600 hover:from-purple-500 hover:to-cyan-500 text-white border-0 px-12 py-4 text-xl rounded-full shadow-2xl shadow-purple-500/25 hover:shadow-purple-500/40 transition-all duration-300">
+                  <Telescope className="w-6 h-6 mr-3" />
+                  Start Extracting
+                  <Sparkles className="w-6 h-6 ml-3" />
+                </Button>
+              </Link>
+            </CardContent>
+          </Card>
+        </section>
+
+        {/* Footer */}
+        <footer className="border-t border-purple-500/20 backdrop-blur-sm bg-black/40">
+          <div className="container mx-auto px-6 py-8">
+            <div className="text-center text-gray-400">
+              <p className="mb-2">RSS Feed Generator • Powered by Advanced AI</p>
+              <p className="text-sm">Transform any website into intelligent news feeds</p>
             </div>
           </div>
-        </div>
-      </section>
+        </footer>
+      </div>
 
-      {/* CTA Section */}
-      <section className="py-20 bg-gradient-to-r from-teal-500 to-blue-600">
-        <div className="container mx-auto px-4 text-center">
-          <h2 className="text-4xl font-bold text-white mb-4">Ready to Convert Your First Website?</h2>
-          <p className="text-xl text-teal-100 mb-8 max-w-2xl mx-auto">
-            Start creating RSS feeds from any website in seconds. No signup required.
-          </p>
-          <Link href="/convert">
-            <Button size="lg" className="bg-white text-teal-600 hover:bg-gray-100 px-8 py-4 text-lg">
-              Get Started Now
-            </Button>
-          </Link>
-        </div>
-      </section>
-
-      {/* Footer */}
-      <footer className="bg-gray-900 text-white py-12">
-        <div className="container mx-auto px-4">
-          <div className="flex flex-col md:flex-row items-center justify-between">
-            <div className="flex items-center space-x-2 mb-4 md:mb-0">
-              <Rss className="h-6 w-6 text-teal-400" />
-              <span className="text-lg font-semibold">RSS Converter</span>
-            </div>
-            <div className="text-gray-400 text-sm">© 2024 RSS Converter. Turn any website into an RSS feed.</div>
-          </div>
-        </div>
-      </footer>
+      <style jsx>{`
+        @keyframes spin-slow {
+          from { transform: rotate(0deg); }
+          to { transform: rotate(360deg); }
+        }
+        
+        @keyframes scan-vertical {
+          0% { transform: translateY(-100%); }
+          100% { transform: translateY(400px); }
+        }
+        
+        @keyframes scan-horizontal {
+          0% { transform: translateX(-100%); }
+          100% { transform: translateX(400px); }
+        }
+        
+        .animate-spin-slow {
+          animation: spin-slow 20s linear infinite;
+        }
+        
+        .animate-scan-vertical {
+          animation: scan-vertical 3s ease-in-out infinite;
+        }
+        
+        .animate-scan-horizontal {
+          animation: scan-horizontal 4s ease-in-out infinite;
+        }
+      `}</style>
     </div>
   )
 }

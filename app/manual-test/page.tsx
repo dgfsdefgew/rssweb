@@ -3,240 +3,367 @@
 import { useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
-import { Loader2, TestTube, CheckCircle, XCircle, ArrowLeft } from "lucide-react"
-import Link from "next/link"
+import { Checkbox } from "@/components/ui/checkbox"
+import { Textarea } from "@/components/ui/textarea"
+import { Scan, ExternalLink, Loader2, CheckCircle, AlertCircle, Globe, Download, Eye, Settings } from "lucide-react"
 
-interface TestResult {
-  success: boolean
-  selectors?: any
-  itemCount?: number
-  error?: string
-  duration?: number
-  feedPreview?: any
+interface FeedItem {
+  id: string
+  title: string
+  link: string
+  description: string
+  category: string
+  timestamp: string
+  selected: boolean
 }
 
 export default function ManualTestPage() {
   const [url, setUrl] = useState("")
-  const [testing, setTesting] = useState(false)
-  const [result, setResult] = useState<TestResult | null>(null)
+  const [customSelectors, setCustomSelectors] = useState("")
+  const [isLoading, setIsLoading] = useState(false)
+  const [feedItems, setFeedItems] = useState<FeedItem[]>([])
+  const [error, setError] = useState("")
+  const [success, setSuccess] = useState("")
+  const [feedTitle, setFeedTitle] = useState("")
+  const [isGeneratingFeed, setIsGeneratingFeed] = useState(false)
 
-  const quickTestUrls = [
-    "https://example.com",
-    "https://news.ycombinator.com",
-    "https://github.com/trending",
-    "https://www.reddit.com/r/programming",
-    "https://jsonplaceholder.typicode.com",
-  ]
+  const handleTest = async () => {
+    if (!url.trim()) {
+      setError("Please enter a valid URL")
+      return
+    }
 
-  const testSingleWebsite = async (testUrl: string) => {
-    setTesting(true)
-    setResult(null)
-    const startTime = Date.now()
+    setIsLoading(true)
+    setError("")
+    setSuccess("")
+    setFeedItems([])
 
     try {
-      console.log("Testing URL:", testUrl)
+      let selectors = null
+      if (customSelectors.trim()) {
+        try {
+          selectors = JSON.parse(customSelectors)
+        } catch {
+          setError("Invalid JSON in custom selectors")
+          setIsLoading(false)
+          return
+        }
+      }
 
-      // Step 1: Test auto-detection
-      const autoDetectResponse = await fetch("/api/autodetect", {
+      const endpoint = selectors ? "/api/generate-feed" : "/api/autodetect"
+      const body = selectors ? { url: url.trim(), selectors } : { url: url.trim() }
+
+      const response = await fetch(endpoint, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ url: testUrl }),
+        body: JSON.stringify(body),
       })
 
-      console.log("Auto-detect response status:", autoDetectResponse.status)
+      const data = await response.json()
 
-      if (!autoDetectResponse.ok) {
-        throw new Error(`Auto-detect failed: ${autoDetectResponse.status} ${autoDetectResponse.statusText}`)
+      if (data.success) {
+        const items = (data.items || []).map((item: any, index: number) => ({
+          ...item,
+          id: `item-${index}`,
+          selected: false,
+        }))
+        setFeedItems(items)
+        setFeedTitle(data.pageTitle || "Manual Test Feed")
+        setSuccess(`Found ${items.length} items successfully!`)
+      } else {
+        setError(data.error || "Failed to extract content")
       }
-
-      const autoDetectData = await autoDetectResponse.json()
-      console.log("Auto-detect data:", autoDetectData)
-
-      if (!autoDetectData.success) {
-        setResult({
-          success: false,
-          error: autoDetectData.error || "Auto-detection failed",
-          duration: Date.now() - startTime,
-        })
-        return
-      }
-
-      // Step 2: Test feed generation
-      const feedResponse = await fetch("/api/generate-feed", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          url: testUrl,
-          selectors: autoDetectData.selectors,
-          feedTitle: "Test RSS Feed",
-          maxItems: 5,
-          useAI: true,
-        }),
-      })
-
-      console.log("Feed generation response status:", feedResponse.status)
-
-      if (!feedResponse.ok) {
-        throw new Error(`Feed generation failed: ${feedResponse.status} ${feedResponse.statusText}`)
-      }
-
-      const feedData = await feedResponse.json()
-      console.log("Feed data:", feedData)
-
-      setResult({
-        success: feedData.success,
-        selectors: autoDetectData.selectors,
-        itemCount: feedData.success ? feedData.preview.items.length : 0,
-        error: feedData.success ? undefined : feedData.error,
-        duration: Date.now() - startTime,
-        feedPreview: feedData.success ? feedData.preview : undefined,
-      })
     } catch (error) {
+      setError("Network error during testing")
       console.error("Test error:", error)
-      setResult({
-        success: false,
-        error: error instanceof Error ? error.message : "Unknown error occurred",
-        duration: Date.now() - startTime,
-      })
     } finally {
-      setTesting(false)
+      setIsLoading(false)
     }
   }
 
+  const toggleItemSelection = (id: string) => {
+    setFeedItems((items) => items.map((item) => (item.id === id ? { ...item, selected: !item.selected } : item)))
+  }
+
+  const selectAll = () => {
+    setFeedItems((items) => items.map((item) => ({ ...item, selected: true })))
+  }
+
+  const deselectAll = () => {
+    setFeedItems((items) => items.map((item) => ({ ...item, selected: false })))
+  }
+
+  const generateFeed = async () => {
+    const selectedItems = feedItems.filter((item) => item.selected)
+
+    if (selectedItems.length === 0) {
+      setError("Please select at least one item")
+      return
+    }
+
+    setIsGeneratingFeed(true)
+    setError("")
+
+    try {
+      const response = await fetch("/api/generate-selected-feed", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          items: selectedItems,
+          feedTitle,
+          feedUrl: url,
+        }),
+      })
+
+      const data = await response.json()
+
+      if (data.success) {
+        // Download the RSS feed
+        const blob = new Blob([data.rssXml], { type: "application/rss+xml" })
+        const downloadUrl = URL.createObjectURL(blob)
+        const a = document.createElement("a")
+        a.href = downloadUrl
+        a.download = `${feedTitle.replace(/[^a-z0-9]/gi, "_").toLowerCase()}.xml`
+        document.body.appendChild(a)
+        a.click()
+        document.body.removeChild(a)
+        URL.revokeObjectURL(downloadUrl)
+
+        setSuccess(`RSS feed generated with ${selectedItems.length} items!`)
+      } else {
+        setError(data.error || "Failed to generate RSS feed")
+      }
+    } catch (error) {
+      setError("Network error during feed generation")
+      console.error("Feed generation error:", error)
+    } finally {
+      setIsGeneratingFeed(false)
+    }
+  }
+
+  const sampleSelectors = {
+    title: "h1, h2, .title, .headline, .entry-title",
+    link: "a[href]",
+    description: ".summary, .excerpt, .content, p",
+    category: ".category, .tag, .label",
+    timestamp: ".date, .time, time, .published",
+  }
+
   return (
-    <div className="min-h-screen bg-gray-50 py-8">
-      <div className="container mx-auto px-4 max-w-4xl">
-        <div className="mb-6">
-          <Link href="/test" className="flex items-center space-x-2 text-gray-600 hover:text-gray-900 mb-4">
-            <ArrowLeft className="h-4 w-4" />
-            <span>Back to Automated Tests</span>
-          </Link>
-          <h1 className="text-3xl font-bold text-gray-900 mb-2">Manual Website Testing</h1>
-          <p className="text-gray-600">Test individual websites to debug Gemini AI content detection</p>
+    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 text-white p-6">
+      <div className="container mx-auto max-w-6xl">
+        <div className="mb-8">
+          <h1 className="text-4xl font-bold bg-gradient-to-r from-purple-400 via-emerald-400 to-cyan-400 bg-clip-text text-transparent mb-4">
+            Manual RSS Testing
+          </h1>
+          <p className="text-gray-300 text-lg">
+            Manually test and generate RSS feeds with custom selectors and item selection
+          </p>
         </div>
 
-        <Card className="mb-6">
+        {/* Configuration */}
+        <Card className="mb-8 bg-black/60 border-purple-500/30 backdrop-blur-sm">
           <CardHeader>
-            <CardTitle className="flex items-center space-x-2">
-              <TestTube className="h-5 w-5 text-teal-500" />
-              <span>Test Website</span>
+            <CardTitle className="flex items-center text-xl text-purple-400">
+              <Settings className="w-5 h-5 mr-2" />
+              Test Configuration
             </CardTitle>
+            <CardDescription className="text-gray-300">
+              Configure the URL and optional custom selectors for content extraction
+            </CardDescription>
           </CardHeader>
-          <CardContent className="space-y-4">
-            <div>
-              <Label htmlFor="url">Website URL</Label>
-              <Input
-                id="url"
-                type="url"
-                placeholder="https://example.com"
-                value={url}
-                onChange={(e) => setUrl(e.target.value)}
-                className="mt-1"
-              />
+          <CardContent className="space-y-6">
+            <div className="grid md:grid-cols-2 gap-6">
+              <div>
+                <label className="block text-sm font-medium text-gray-300 mb-2">Website URL</label>
+                <Input
+                  type="url"
+                  placeholder="https://example.com"
+                  value={url}
+                  onChange={(e) => setUrl(e.target.value)}
+                  className="bg-black/80 border-purple-400/30 text-white placeholder:text-gray-500"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-300 mb-2">Feed Title</label>
+                <Input
+                  type="text"
+                  placeholder="My Custom Feed"
+                  value={feedTitle}
+                  onChange={(e) => setFeedTitle(e.target.value)}
+                  className="bg-black/80 border-emerald-400/30 text-white placeholder:text-gray-500"
+                />
+              </div>
             </div>
 
             <div>
-              <Label>Quick Test URLs</Label>
-              <div className="flex flex-wrap gap-2 mt-2">
-                {quickTestUrls.map((testUrl) => (
-                  <Button key={testUrl} variant="outline" size="sm" onClick={() => setUrl(testUrl)} className="text-xs">
-                    {new URL(testUrl).hostname}
-                  </Button>
-                ))}
-              </div>
+              <label className="block text-sm font-medium text-gray-300 mb-2">Custom Selectors (Optional JSON)</label>
+              <Textarea
+                placeholder={JSON.stringify(sampleSelectors, null, 2)}
+                value={customSelectors}
+                onChange={(e) => setCustomSelectors(e.target.value)}
+                className="bg-black/80 border-emerald-400/30 text-white placeholder:text-gray-500 font-mono text-sm min-h-[150px]"
+              />
+              <p className="text-xs text-gray-400 mt-2">
+                Leave empty to use automatic detection, or provide custom CSS selectors in JSON format
+              </p>
             </div>
 
             <Button
-              onClick={() => testSingleWebsite(url)}
-              disabled={!url || testing}
-              className="w-full bg-teal-500 hover:bg-teal-600"
+              onClick={handleTest}
+              disabled={isLoading || !url.trim()}
+              className="bg-gradient-to-r from-purple-600 to-emerald-600 hover:from-purple-500 hover:to-emerald-500"
             >
-              {testing ? (
+              {isLoading ? (
                 <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Testing Website...
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  Extracting Content...
                 </>
               ) : (
                 <>
-                  <TestTube className="mr-2 h-4 w-4" />
-                  Test Website
+                  <Scan className="w-4 h-4 mr-2" />
+                  Extract Content
                 </>
               )}
             </Button>
+
+            {/* Status Messages */}
+            {error && (
+              <div className="flex items-center p-4 bg-red-500/10 border border-red-500/30 rounded-lg">
+                <AlertCircle className="w-5 h-5 text-red-400 mr-3" />
+                <span className="text-red-300">{error}</span>
+              </div>
+            )}
+
+            {success && (
+              <div className="flex items-center p-4 bg-green-500/10 border border-green-500/30 rounded-lg">
+                <CheckCircle className="w-5 h-5 text-green-400 mr-3" />
+                <span className="text-green-300">{success}</span>
+              </div>
+            )}
           </CardContent>
         </Card>
 
-        {result && (
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center space-x-2">
-                {result.success ? (
-                  <CheckCircle className="h-5 w-5 text-green-500" />
-                ) : (
-                  <XCircle className="h-5 w-5 text-red-500" />
-                )}
-                <span>Test Results</span>
-                <Badge variant={result.success ? "default" : "destructive"}>
-                  {result.success ? "Success" : "Failed"}
-                </Badge>
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="flex justify-between text-sm text-gray-600">
-                <span>Duration: {result.duration}ms</span>
-                {result.success && <span>Items found: {result.itemCount}</span>}
-              </div>
-
-              {result.error && (
-                <div className="bg-red-50 border border-red-200 rounded p-3">
-                  <h4 className="font-medium text-red-800 mb-1">Error Details</h4>
-                  <p className="text-red-700 text-sm">{result.error}</p>
+        {/* Results */}
+        {feedItems.length > 0 && (
+          <div className="space-y-6">
+            {/* Controls */}
+            <Card className="bg-black/60 border-emerald-500/30 backdrop-blur-sm">
+              <CardHeader>
+                <CardTitle className="flex items-center text-xl text-emerald-400">
+                  <Eye className="w-5 h-5 mr-2" />
+                  Item Selection & Feed Generation
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="flex flex-wrap gap-4 items-center">
+                  <Button
+                    onClick={selectAll}
+                    variant="outline"
+                    size="sm"
+                    className="border-emerald-400/30 text-emerald-400 hover:bg-emerald-400/10 bg-transparent"
+                  >
+                    Select All
+                  </Button>
+                  <Button
+                    onClick={deselectAll}
+                    variant="outline"
+                    size="sm"
+                    className="border-gray-400/30 text-gray-400 hover:bg-gray-400/10 bg-transparent"
+                  >
+                    Clear Selection
+                  </Button>
+                  <Badge variant="outline" className="border-cyan-400/30 text-cyan-400">
+                    {feedItems.filter((item) => item.selected).length} selected
+                  </Badge>
                 </div>
-              )}
 
-              {result.selectors && (
-                <div className="bg-gray-50 border rounded p-3">
-                  <h4 className="font-medium text-gray-800 mb-2">AI-Detected Selectors</h4>
-                  <div className="space-y-1 text-sm font-mono">
-                    <div>
-                      <span className="text-blue-600">Item:</span> {result.selectors.item}
-                    </div>
-                    <div>
-                      <span className="text-green-600">Title:</span> {result.selectors.title}
-                    </div>
-                    <div>
-                      <span className="text-purple-600">Link:</span> {result.selectors.link}
-                    </div>
-                    {result.selectors.description && (
-                      <div>
-                        <span className="text-orange-600">Description:</span> {result.selectors.description}
-                      </div>
-                    )}
-                  </div>
-                </div>
-              )}
+                <Button
+                  onClick={generateFeed}
+                  disabled={isGeneratingFeed || feedItems.filter((item) => item.selected).length === 0}
+                  className="bg-gradient-to-r from-emerald-600 to-cyan-600 hover:from-emerald-500 hover:to-cyan-500"
+                >
+                  {isGeneratingFeed ? (
+                    <>
+                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                      Generating RSS Feed...
+                    </>
+                  ) : (
+                    <>
+                      <Download className="w-4 h-4 mr-2" />
+                      Generate & Download RSS Feed
+                    </>
+                  )}
+                </Button>
+              </CardContent>
+            </Card>
 
-              {result.feedPreview && result.feedPreview.items && (
-                <div className="bg-green-50 border border-green-200 rounded p-3">
-                  <h4 className="font-medium text-green-800 mb-2">Extracted Items Preview</h4>
-                  <div className="space-y-2">
-                    {result.feedPreview.items.slice(0, 3).map((item: any, index: number) => (
-                      <div key={index} className="border-l-2 border-green-400 pl-3">
-                        <div className="font-medium text-sm">{item.title}</div>
-                        <div className="text-xs text-gray-600">{item.link}</div>
+            {/* Items Grid */}
+            <div className="grid gap-4">
+              {feedItems.map((item) => (
+                <Card
+                  key={item.id}
+                  className={`bg-black/60 border-white/10 backdrop-blur-sm hover:bg-black/80 transition-all duration-300 cursor-pointer ${
+                    item.selected ? "border-emerald-400/40 bg-emerald-500/5" : ""
+                  }`}
+                  onClick={() => toggleItemSelection(item.id)}
+                >
+                  <CardContent className="p-6">
+                    <div className="flex items-start space-x-4">
+                      <Checkbox
+                        checked={item.selected}
+                        onChange={() => toggleItemSelection(item.id)}
+                        className="mt-1 border-emerald-400/30 data-[state=checked]:bg-emerald-500 data-[state=checked]:border-emerald-500"
+                      />
+
+                      <div className="flex-1 space-y-3">
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center space-x-3">
+                            {item.category && (
+                              <Badge className="bg-gradient-to-r from-emerald-500 to-cyan-500 text-white border-0">
+                                {item.category}
+                              </Badge>
+                            )}
+                          </div>
+                          {item.link && (
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={(e) => {
+                                e.stopPropagation()
+                                window.open(item.link, "_blank")
+                              }}
+                              className="text-cyan-400 hover:text-cyan-300 hover:bg-cyan-400/10 p-1 h-auto"
+                            >
+                              <ExternalLink className="w-3 h-3" />
+                            </Button>
+                          )}
+                        </div>
+
+                        <h3 className="text-lg font-semibold text-white">{item.title}</h3>
+
                         {item.description && (
-                          <div className="text-xs text-gray-500 mt-1">{item.description.substring(0, 100)}...</div>
+                          <p className="text-gray-400 text-sm leading-relaxed">{item.description}</p>
                         )}
+
+                        <div className="flex items-center justify-between text-xs text-gray-500">
+                          <div className="flex items-center space-x-4">
+                            <span className="flex items-center">
+                              <Globe className="w-3 h-3 mr-1" />
+                              {new URL(url).hostname}
+                            </span>
+                            {item.timestamp && <span>{item.timestamp}</span>}
+                          </div>
+                        </div>
                       </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-            </CardContent>
-          </Card>
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          </div>
         )}
       </div>
     </div>
